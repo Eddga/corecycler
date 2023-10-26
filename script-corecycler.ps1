@@ -36,7 +36,7 @@ $processCounterPathId       = $null
 $processCounterPathTime     = $null
 $coresWithError             = $null
 $coresWithErrorsCounter     = $null
-$previousError              = $null
+#$previousError              = $null
 $stressTestLogFileName      = $null
 $stressTestLogFilePath      = $null
 $prime95CPUSettings         = $null
@@ -56,7 +56,7 @@ $coreTestOrderMode          = $null
 $coreTestOrderCustom        = @()
 $scriptExit                 = $false
 $fatalError                 = $false
-$otherError                 = $false
+#$otherError                 = $false
 $previousFileSize           = $null
 $previousPassedFFTSize      = $null
 $previousPassedFFTEntry     = $null
@@ -800,7 +800,7 @@ function Show-FinalSummary {
 
     # Display the cores with  error
     if ( $coresWithError.Length -gt 0 ) {
-        $coresWithErrorString = (($coresWithError | sort) -Join ', ')
+        $coresWithErrorString = (($coresWithError | Sort-Object) -Join ', ')
         Write-ColorText('The following cores have thrown an error: ') Cyan
         Write-ColorText(' - ' + $coresWithErrorString) Cyan
     }
@@ -906,7 +906,7 @@ function Get-PerformanceCounterIDs {
 ## $parameters = [String] $filename, [String] $existingFilename, [IntPtr]::Zero 
 ##  
 ## ## Call the CreateHardLink method in the Kernel32 DLL 
-## $result = Invoke-WindowsApi "kernel32" ([Bool]) "CreateHardLink" ` 
+## $result = Invoke-WindowsApi "kernel32" ([Bool]) "CreateHardLink" `
 ##     $parameterTypes $parameters 
 ## 
 ############################################################################## 
@@ -1351,7 +1351,7 @@ function Import-Settings {
             if ($name -eq 'coresToIgnore') {
                 $thisSetting = @()
 
-                if ($value -ne $null -and ![String]::IsNullOrWhiteSpace($value)) {
+                if ($null -ne $value -and ![String]::IsNullOrWhiteSpace($value)) {
                     # Split the string by comma and add to the coresToIgnore entry
                     $value -split ',\s*' | ForEach-Object {
                         if ($_.Length -gt 0) {
@@ -1372,7 +1372,7 @@ function Import-Settings {
                 $thisSetting = @()
 
                 # Empty value, use the default
-                if ($value -eq $null -or [String]::IsNullOrWhiteSpace($value)) {
+                if ($null -eq $value -or [String]::IsNullOrWhiteSpace($value)) {
                     $value = $stressTestPrograms.ycruncher.defaultTests -Join ', '
                 }
 
@@ -1535,7 +1535,7 @@ function Get-Settings {
         foreach ($userSetting in $sectionEntry.Value.GetEnumerator()) {
             # No empty values (except empty arrays)
             if ( `
-                    ($userSetting.Value -ne $null -and ![String]::IsNullOrWhiteSpace($userSetting.Value)) `
+                    ($null -ne $userSetting.Value -and ![String]::IsNullOrWhiteSpace($userSetting.Value)) `
                 -or ($userSetting.Value -is [Array] -or $userSetting.Value -is [Hashtable]) `
             ) {
                 $settings[$sectionEntry.Name][$userSetting.Name] = $userSetting.Value
@@ -1955,7 +1955,7 @@ function Get-StressTestProcessInformation {
         Write-Verbose('enableYCruncherLoggingWrapper has been set, special handling')
         $searchForProcess = '*"' + $stressTestPrograms['ycruncher']['fullPathToLoadExe'] + '.' + $stressTestPrograms['ycruncher']['processNameExt'] + '"*'
         $filteredWindowObj = $windowObj | Where-Object {
-            $commandLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $($_.ProcessId)" | select CommandLine).CommandLine
+            $commandLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $($_.ProcessId)" | Select-Object CommandLine).CommandLine
             $hasMatch = $commandLine -like $searchForProcess
 
             Write-Verbose(' - ProcessId:        ' + $_.ProcessId)
@@ -2434,7 +2434,7 @@ function Initialize-Prime95 {
         Write-ColorText('WARNING: The selected minimum FFT size (' + $minFFTSize/1024 + 'K) does not exist for the selected mode!') Yellow
         Write-Verbose('The FFTSizes array does not include the current min FFT size, searching for the next size')
 
-        $Script:minFFTSize = ($FFTSizes[$cpuTestMode] | % {
+        $Script:minFFTSize = ($FFTSizes[$cpuTestMode] | ForEach-Object {
             if ($_ -gt $minFFTSize) {
                 $_
             }
@@ -2455,7 +2455,7 @@ function Initialize-Prime95 {
         Write-ColorText('WARNING: The selected maximum FFT size (' + $maxFFTSize/1024 + 'K) does not exist for the selected mode!') Yellow
         Write-Verbose('The FFTSizes array does not include the current max FFT size, searching for the previous size')
 
-        $Script:maxFFTSize = (($FFTSizes[$cpuTestMode] | Sort-Object -Descending) | ForEach {
+        $Script:maxFFTSize = (($FFTSizes[$cpuTestMode] | Sort-Object -Descending) | ForEach-Object {
             if ($maxFFTSize -gt $_) {
                 $_
             }
@@ -2657,7 +2657,7 @@ function Start-Prime95 {
         $Script:processCounterPathId = Start-Job -ScriptBlock { 
             $counterPathName = $args[0].'FullName'
             $processId = $args[1]
-            ((Get-Counter $counterPathName -ErrorAction Ignore).CounterSamples | ? {$_.RawValue -eq $processId}).Path
+            ((Get-Counter $counterPathName -ErrorAction Ignore).CounterSamples | Where-Object {$_.RawValue -eq $processId}).Path
         } -ArgumentList $counterNames, $stressTestProcessId | Wait-Job | Receive-Job
 
         if (!$processCounterPathId) {
@@ -3025,7 +3025,7 @@ function Start-Aida64 {
         $Script:processCounterPathId = Start-Job -ScriptBlock { 
             $counterPathName = $args[0].'FullName'
             $processId = $args[1]
-            ((Get-Counter $counterPathName -ErrorAction Ignore).CounterSamples | ? {$_.RawValue -eq $processId}).Path
+            ((Get-Counter $counterPathName -ErrorAction Ignore).CounterSamples | Where-Object {$_.RawValue -eq $processId}).Path
         } -ArgumentList $counterNames, $stressTestProcessId | Wait-Job | Receive-Job
 
         if (!$processCounterPathId) {
@@ -3303,7 +3303,7 @@ function Initialize-yCruncher {
     }
 
     # The tests to run
-    $testsToRun = $selectedTests | % { -Join('            "', $_, '"') }
+    $testsToRun = $selectedTests | ForEach-Object { -Join('            "', $_, '"') }
 
     # The duration per test
     if ($settings.yCruncher.testDuration -gt 0) {
@@ -3392,7 +3392,7 @@ function Start-yCruncher {
         $Script:processCounterPathId = Start-Job -ScriptBlock { 
             $counterPathName = $args[0].'FullName'
             $processId = $args[1]
-            ((Get-Counter $counterPathName -ErrorAction Ignore).CounterSamples | ? {$_.RawValue -eq $processId}).Path
+            ((Get-Counter $counterPathName -ErrorAction Ignore).CounterSamples | Where-Object {$_.RawValue -eq $processId}).Path
         } -ArgumentList $counterNames, $stressTestProcessId | Wait-Job | Receive-Job
 
         if (!$processCounterPathId) {
@@ -3600,7 +3600,7 @@ function Test-StressTestProgrammIsRunning {
     if (!$stressTestError -and $isPrime95) {
 
         # Look for a line with an "error" string in the new log entries
-        $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error.*'} | Select -Last 1
+        $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error.*'} | Select-Object -Last 1
         
         # Found the "error" string
         if ($errorResults.Length -gt 0) {
@@ -3630,7 +3630,7 @@ function Test-StressTestProgrammIsRunning {
         # Errors encountered. Stopping test...
 
         # Look for a line with an "error" string in the new log entries
-        $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error\(s\).*'} | Select -Last 1
+        $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error\(s\).*'} | Select-Object -Last 1
         
         # Found the "error" string
         if ($errorResults.Length -gt 0) {
@@ -3666,7 +3666,7 @@ function Test-StressTestProgrammIsRunning {
                 # For Prime95
                 if ($isPrime95) {
                     # Look for a line with an "error" string in the new log entries
-                    $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error.*'} | Select -Last 1
+                    $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error.*'} | Select-Object -Last 1
                     
                     # Found the "error" string
                     if ($errorResults.Length -gt 0) {
@@ -3680,7 +3680,7 @@ function Test-StressTestProgrammIsRunning {
                 # For y-Cruncher with logging enabled
                 if ($isYCruncherWithLogging) {
                     # Look for a line with an "error" string in the new log entries
-                    $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error\(s\).*'} | Select -Last 1
+                    $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error\(s\).*'} | Select-Object -Last 1
                     
                     # Found the "error" string
                     if ($errorResults.Length -gt 0) {
@@ -3715,7 +3715,7 @@ function Test-StressTestProgrammIsRunning {
                         $thisProcessCounterPathId = Start-Job -ScriptBlock { 
                             $counterPathName = $args[0].'FullName'
                             $processId = $args[1]
-                            ((Get-Counter $counterPathName -ErrorAction Ignore).CounterSamples | ? {$_.RawValue -eq $processId}).Path
+                            ((Get-Counter $counterPathName -ErrorAction Ignore).CounterSamples | Where-Object {$_.RawValue -eq $processId}).Path
                         } -ArgumentList $counterNames, $thisProcessId | Wait-Job | Receive-Job
 
                         $thisProcessCounterPathTime = $thisProcessCounterPathId -replace $counterNames['SearchString'], $counterNames['ReplaceString']
@@ -3795,7 +3795,7 @@ function Test-StressTestProgrammIsRunning {
             }
         }
 
-        $cpuNumberString = (($cpuNumbersArray | sort) -Join ' or ')
+        $cpuNumberString = (($cpuNumbersArray | Sort-Object) -Join ' or ')
 
 
         # If running Prime95 or y-Cruncher with logging wrapper, make one additional check if the log file now has an error entry
@@ -3808,12 +3808,12 @@ function Test-StressTestProgrammIsRunning {
 
             # Prime95: Look for a line with an "error" string in the new log entries
             if ($isPrime95) {
-                $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error.*'} | Select -Last 1
+                $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error.*'} | Select-Object -Last 1
             }
 
             # y-Cruncher: Look for error(s)
             elseif ($isYCruncherWithLogging) {
-                $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error\(s\).*'} | Select -Last 1
+                $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error\(s\).*'} | Select-Object -Last 1
             }
             
             # Found the "error" string
@@ -3849,7 +3849,7 @@ function Test-StressTestProgrammIsRunning {
 
             # Check in the error message
             # "Hardware failure detected running 10752K FFT size, consult stress.txt file."
-            $lastFFTErrorEntry = $newLogEntries | Where-Object {$_.Line -match 'Hardware failure detected running \d+K FFT size*'} | Select -Last 1
+            $lastFFTErrorEntry = $newLogEntries | Where-Object {$_.Line -match 'Hardware failure detected running \d+K FFT size*'} | Select-Object -Last 1
 
             if ($lastFFTErrorEntry) {
                 Write-Verbose('There was an FFT size provided in the error message, use it.')
@@ -3891,7 +3891,7 @@ function Test-StressTestProgrammIsRunning {
                     else {
                         Write-Verbose('Trying to find the last passed FFT sizes')
 
-                        $lastFiveRows     = $allLogEntries | Select -Last 5
+                        $lastFiveRows     = $allLogEntries | Select-Object -Last 5
                         $lastPassedFFTArr = @($lastFiveRows | Where-Object {$_ -like '*passed*'})  # This needs to be an array
                         $hasMatched       = $lastPassedFFTArr[$lastPassedFFTArr.Length-1] -match 'Self\-test (\d+)(K?) passed'
                         
@@ -3956,7 +3956,7 @@ function Test-StressTestProgrammIsRunning {
 
                 # Only Smallest, Small and Large FFT presets follow the order, so no real FFT size fail detection is possible due to randomization of the order by Prime95
                 else {
-                    $lastFiveRows     = $allLogEntries | Select -Last 5
+                    $lastFiveRows     = $allLogEntries | Select-Object -Last 5
                     $lastPassedFFTArr = @($lastFiveRows | Where-Object {$_ -like '*passed*'})
                     $hasMatched       = $lastPassedFFTArr[$lastPassedFFTArr.Length-1] -match 'Self\-test (\d+)(K?) passed'
 
@@ -4021,7 +4021,7 @@ function Test-StressTestProgrammIsRunning {
 
 
             # Get the last 20 rows
-            $lastTwentyRows = $allLogEntries | Select -Last 20
+            $lastTwentyRows = $allLogEntries | Select-Object -Last 20
 
 
             # Get the last test that was being run
@@ -4029,10 +4029,10 @@ function Test-StressTestProgrammIsRunning {
             # The last entry may already be the next test that was started after the error happened
 
             # Look for the line the error message appears in
-            $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error\(s\).*'} | Select -Last 1
+            $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error\(s\).*'} | Select-Object -Last 1
             
             if ($errorResults.Length -gt 0) {
-                $lastLineEntry  = $lastTwentyRows | Select-String -Pattern $errorResults.Line -SimpleMatch | Select -First 1 | Select Line,LineNumber
+                $lastLineEntry  = $lastTwentyRows | Select-String -Pattern $errorResults.Line -SimpleMatch | Select-Object -First 1 | Select-Object Line,LineNumber
                 $lastLineNumber = $lastLineEntry.LineNumber
             }
             else {
@@ -4041,7 +4041,7 @@ function Test-StressTestProgrammIsRunning {
 
 
             # Reduce the Last Twenty Rows up to this line
-            $lastRowsUpToError = $lastTwentyRows | Select -First $lastLineNumber
+            $lastRowsUpToError = $lastTwentyRows | Select-Object -First $lastLineNumber
 
             # Now get the last started test
             $allLatestTestArr = @($lastRowsUpToError | Where-Object {$_ -like '*Running *'})
@@ -4059,7 +4059,7 @@ function Test-StressTestProgrammIsRunning {
             }
             
 
-            $exceptionEntry = $lastTwentyRows | Where-Object {$_ -match 'Exception Encountered'} | Select -Last 1
+            $exceptionEntry = $lastTwentyRows | Where-Object {$_ -match 'Exception Encountered'} | Select-Object -Last 1
             $hasMatched = $($lastTwentyRows | Out-String) | Where-Object {$_ -match "(?s)Exception Encountered.+`r`n`r`n(.+)`r`n`r`nError\(s\) encountered on logical core"}
             # Note: this needs double quotes to recognize the line breaks
 
@@ -4197,7 +4197,7 @@ function Get-NewLogfileEntries {
     $streamReader.Close()
 
     Write-Debug('           The new log file entries:')
-    $newLogEntries | % {
+    $newLogEntries | ForEach-Object {
         Write-Debug('           - [Line ' + $_.LineNumber + '] ' + $_.Line)
     }
 
@@ -4644,7 +4644,7 @@ try {
 
     # Print a message if we're ignoring certain cores
     if ($settings.General.coresToIgnore.Length -gt 0) {
-        $coresToIgnoreString = (($settings.General.coresToIgnore | sort) -Join ', ')
+        $coresToIgnoreString = (($settings.General.coresToIgnore | Sort-Object) -Join ', ')
         Write-ColorText('Ignored cores: ........................ ' + $coresToIgnoreString) Cyan
         Write-ColorText('--------------------------------------------------------------------------------') Cyan
     }
@@ -4790,7 +4790,7 @@ try {
     }
 
     # Remove ignored cores
-    $coresToTest = $coresToTest | ? {$_ -notin $settings.General.coresToIgnore}
+    $coresToTest = $coresToTest | Where-Object {$_ -notin $settings.General.coresToIgnore}
 
     Write-Verbose('All cores that could be tested: ' + ($allCores -Join ', '))
     Write-Verbose('The preliminary test order:     ' + ($coresToTest -Join ', '))
@@ -4839,7 +4839,7 @@ try {
             for ($i = 0; $i -lt $numPhysCores; $i++) {
                 $currentCoreNumber = 0
 
-                if ($previousCoreNumber -ne $null) {
+                if ($null -ne $previousCoreNumber) {
                     if ($previousCoreNumber -lt $halfCores) {
                         $currentCoreNumber = [Int] ($previousCoreNumber + $halfCores)
                     }
@@ -4935,7 +4935,7 @@ try {
 
             Write-Verbose('The selected core to test: ' + $actualCoreNumber)
 
-            $cpuNumberString = (($cpuNumbersArray | sort) -Join ' and ')
+            $cpuNumberString = (($cpuNumbersArray | Sort-Object) -Join ' and ')
 
 
             # Skip if this core is in the ignored cores array
@@ -5242,7 +5242,7 @@ try {
 
 
                         Write-Debug('           The last passed FFT result lines:')
-                        $lastPassedFFTSizeResults | % {
+                        $lastPassedFFTSizeResults | ForEach-Object {
                             Write-Debug('           - [Line ' + $_.LineNumber + '] ' + $_.Line)
                         }
 
@@ -5276,7 +5276,7 @@ try {
 
 
                         Write-Debug('           All found FFT size lines:')
-                        $foundFFTSizeLines | % {
+                        $foundFFTSizeLines | ForEach-Object {
                             Write-Debug('           - [Line ' + $_.LineNumber + '] ' + $_.Line)
                         }
                         
@@ -5464,7 +5464,7 @@ try {
                         # Check for an error, if we've found one, we don't even need to process any further
                         # Note: there is a potential to miss log entries this way
                         # However, since the script either stops at this point or the stress test program is restarted, we don't really need to worry about this
-                        $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error\(s\).*'} | Select -Last 1
+                        $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error\(s\).*'} | Select-Object -Last 1
 
                         if ($errorResults) {
                             Write-Debug('           Found an error entry in the new log entries, proceed to the error check')
@@ -5486,7 +5486,7 @@ try {
 
 
                         Write-Debug('           The last passed test lines:')
-                        $lastPassedTestResults | % {
+                        $lastPassedTestResults | ForEach-Object {
                             Write-Debug('           - [Line ' + $_.LineNumber + '] ' + $_.Line)
                         }
 
@@ -5515,7 +5515,7 @@ try {
 
 
                         Write-Debug('           All found passed test lines:')
-                        $foundPassedTestLines | % {
+                        $foundPassedTestLines | ForEach-Object {
                             Write-Debug('           - [Line ' + $_.LineNumber + '] ' + $_.Line)
                         }
                         
@@ -5817,7 +5817,7 @@ try {
         # Print out the cores that have thrown an error so far
         if ($coresWithError.Length -gt 0) {
             if ($settings.General.skipCoreOnError) {
-                Write-ColorText('The following cores have thrown an error: ' + (($coresWithError | sort) -Join ', ')) Cyan
+                Write-ColorText('The following cores have thrown an error: ' + (($coresWithError | Sort-Object) -Join ', ')) Cyan
             }
             else {
                 Write-ColorText('The following cores have thrown an error:') Cyan
@@ -5831,7 +5831,7 @@ try {
                     }
                 }
                 
-                foreach ($entry in ($coresWithErrorsCounter.GetEnumerator() | Sort Name)) {
+                foreach ($entry in ($coresWithErrorsCounter.GetEnumerator() | Sort-Object Name)) {
                     # No error, skip
                     if ($entry.Value -lt 1) {
                         continue
