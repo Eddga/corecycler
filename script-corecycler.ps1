@@ -1,6 +1,6 @@
 <#
 .AUTHOR
-    sp00n
+    sp00n, Eddga
 .VERSION
     0.9.5.0alpha2
 .DESCRIPTION
@@ -67,6 +67,10 @@ $isAida64                   = $false
 $isYCruncher                = $false
 $isYCruncherWithLogging     = $false
 $cpuCheckIterations         = 0
+
+# Default Notifications parameters
+$successSoundFileDefault = "$env:windir\Media\tada.wav"
+$errorSoundFileDefault   = "$env:windir\Media\chord.wav"
 
 # Parameters that are controllable by debug settings
 $debugSettingsActive                        = $false
@@ -796,16 +800,42 @@ function Show-FinalSummary {
     Write-ColorText('------ Summary ------') Green
     Write-ColorText('---------------------') Green
     Write-ColorText('The script ran for ' + $runTimeString) Cyan
-    
 
-    # Display the cores with  error
+
+    # Display the cores with error
     if ( $coresWithError.Length -gt 0 ) {
         $coresWithErrorString = (($coresWithError | Sort-Object) -Join ', ')
         Write-ColorText('The following cores have thrown an error: ') Cyan
         Write-ColorText(' - ' + $coresWithErrorString) Cyan
+        $summaryMessage = "The following cores have thrown an error: $coresWithErrorString"
+        $soundFile = if ( $successSoundFile -match '^[^\\]*$' ) { (Get-ChildItem $env:windir\Media -Filter $errorSoundFile | Select-Object -First 1).FullName } else { $errorSoundFile }
     }
     else {
-        Write-ColorText('No core has thrown an error') Cyan
+        $summaryMessage = 'No core has thrown an error'
+        Write-ColorText($summaryMessage) Cyan
+        $soundFile = if ( $successSoundFile -match '^[^\\]*$' ) { (Get-ChildItem $env:windir\Media -Filter $successSoundFile | Select-Object -First 1).FullName } else { $successSoundFile }
+    }
+
+
+    # Play an error or success sound if enabled in config and file is present
+    if ( $settings.Notifications.playSummarySound ) {
+        if ( Test-Path $soundFile ) {
+            (New-Object Media.SoundPlayer $soundFile).Play()
+        } else {
+            Write-ColorText('WARNING: No sound was played - the "playSummarySound" flag was set, but the predefined sound file either couldn''t be found or isn''t a .wav file.') Yellow
+        }
+    }
+
+
+    # Use text-to-speech module to read the summary out loud if enabled in config
+    if ( $settings.Notifications.readSummaryAloud ) {
+        if ( ([System.AppDomain]::CurrentDomain.GetAssemblies()).Location -match 'System.Speech.dll' ) {
+            Add-Type -AssemblyName System.Speech
+            $synth = New-Object -TypeName System.Speech.Synthesis.SpeechSynthesizer
+            $synth.speak($summaryMessage)
+        } else {
+            Write-ColorText('WARNING: No sound was played - the "readSummaryAloud" flag was set, but the system.speech.dll isn''t present or registered.') Yellow
+        }
     }
 }
 
@@ -1620,6 +1650,11 @@ function Get-Settings {
     
     $Script:logFileName     = $logFilePrefix + '_' + $startDateTime + '_' + $settings.General.stressTestProgram.ToUpperInvariant() + '_' + $modeString + '.log'
     $Script:logFileFullPath = $logFilePathAbsolute + $logFileName
+
+
+    # Get the .wav file (path) from the Notifications if present or set the default values if empty
+    $Script:successSoundFile = $(if (![String]::IsNullOrWhiteSpace($settings.Notifications.successSoundFile)) { $settings.Notifications.successSoundFile } else { $successSoundFileDefault })
+    $Script:errorSoundFile   = $(if (![String]::IsNullOrWhiteSpace($settings.Notifications.errorSoundFile))   { $settings.Notifications.errorSoundFile   } else { $errorSoundFileDefault })
 
 
     # Debug settings may override default settings
