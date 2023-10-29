@@ -16,15 +16,21 @@
     Please excuse my amateurish code in this file, it's my first attempt at writing in PowerShell ._.
 #>
 
+# Workaround PSScriptRoot not populated when manually running and debugging code - https://github.com/PowerShell/vscode-powershell/issues/633#issuecomment-1474495604
+$cmd = $PSCommandPath # blank if F8
+if ( -not $cmd -and $script:psEditor )  { $cmd = $script:psEditor.GetEditorContext().CurrentFile.Path }
+if ( -not $cmd -and $script:psISE    )  { $cmd = $script:psISE.CurrentFile.FullPath                   }
+$root = Split-Path $cmd -Parent
+
 # Global variables
 $version                    = '0.9.5.0alpha2'
 $startDate                  = Get-Date
 $startDateTime              = Get-Date -format yyyy-MM-dd_HH-mm-ss
 $logFilePath                = 'logs'
-$logFilePathAbsolute        = $PSScriptRoot + '\' + $logFilePath + '\'
+$logFilePathAbsolute        = $root + '\' + $logFilePath + '\'
 $logFileName                = 'CoreCycler_' + $startDateTime + '.log'
 $logFileFullPath            = $logFilePathAbsolute + $logFileName
-$helpersPathAbsolute        = $PSScriptRoot + '\helpers\'
+$helpersPathAbsolute        = $root + '\helpers\'
 $settings                   = $null
 $selectedStressTestProgram  = $null
 $useAutomaticRuntimePerCore = $false
@@ -1469,8 +1475,8 @@ function Get-Settings {
     Write-Verbose('Parsing the user settings')
 
     # Get the absolute path of the config files
-    $configDefaultPath = $PSScriptRoot + '\config.default.ini'
-    $configUserPath    = $PSScriptRoot + '\config.ini'
+    $configDefaultPath = $root + '\config.default.ini'
+    $configUserPath    = $root + '\config.ini'
     $logFilePrefix     = 'CoreCycler'
 
     # Set the temporary name and path for the logfile
@@ -2505,7 +2511,7 @@ function Initialize-Prime95 {
     # - then set the paths to the prime.txt and local.txt relative to that working directory
     # This should keep us below 80 characters
     $content2 = @(
-        "WorkingDir=$PSScriptRoot",
+        "WorkingDir=$root",
 
         # Set the custom results.txt file name
         "prime.ini=$(   Join-Path $stressTestPrograms[$p95Type]['processPath'] 'prime.txt' )",
@@ -4138,9 +4144,9 @@ if ($PSVersionTable.PSVersion.Major -gt 5) {
 
 
 # Non-ANSI characters in the directory path may pose problems
-Write-Debug('PSScriptRoot: ' + $PSScriptRoot)
+Write-Debug('PSScriptRoot: ' + $root)
 
-if ($PSScriptRoot -match '[^\x00-\x7F]') {
+if ($root -match '[^\x00-\x7F]') {
     Write-Host
     Write-Host 'FATAL ERROR: The directory path contains non-ANSI characters!' -ForegroundColor Red
     Write-Host
@@ -4148,7 +4154,7 @@ if ($PSScriptRoot -match '[^\x00-\x7F]') {
     Write-Host '(for example D:\Overclock\CoreCycler\)' -ForegroundColor Yellow
     Write-Host
     Write-Host 'The current directory is:' -ForegroundColor Yellow
-    Write-Host $PSScriptRoot -ForegroundColor Yellow
+    Write-Host $root -ForegroundColor Yellow
     
     Exit-WithFatalError
 }
@@ -4295,8 +4301,8 @@ catch {
 
 # Get the final stress test program file paths and command lines
 foreach ($testProgram in $stressTestPrograms.GetEnumerator()) {
-    $stressTestPrograms[$testProgram.Name]['absolutePath']        = $PSScriptRoot + '\' + $testProgram.Value['processPath'] + '\'
-    $stressTestPrograms[$testProgram.Name]['absoluteInstallPath'] = $PSScriptRoot + '\' + $testProgram.Value['installPath'] + '\'
+    $stressTestPrograms[$testProgram.Name]['absolutePath']        = $root + '\' + $testProgram.Value['processPath'] + '\'
+    $stressTestPrograms[$testProgram.Name]['absoluteInstallPath'] = $root + '\' + $testProgram.Value['installPath'] + '\'
     $stressTestPrograms[$testProgram.Name]['fullPathToExe']       = $testProgram.Value['absolutePath'] + $testProgram.Value['processName']
     $stressTestPrograms[$testProgram.Name]['configFilePath']      = $testProgram.Value['absolutePath'] + $testProgram.Value['configName']
 
