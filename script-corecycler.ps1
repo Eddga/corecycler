@@ -289,7 +289,7 @@ $isHyperthreadingEnabled = ($numLogicalCores -gt $numPhysCores)
 
 # Override the HashTable .ToString() method to generate readable output
 # https://www.sapien.com/blog/2014/10/21/a-better-tostring-method-for-hash-tables/
-Update-TypeData -TypeName System.Collections.HashTable `
+$null = Update-TypeData -TypeName System.Collections.HashTable `
 -MemberType ScriptMethod `
 -MemberName ToString `
 -Value { `
@@ -564,13 +564,13 @@ $SendMessageDefinition = @'
 
 
 # Make the external code definitions available to PowerShell
-Add-Type -ErrorAction Stop -Name PowerUtil -Namespace Windows -MemberDefinition $PowerUtilDefinition
-Add-Type -TypeDefinition $GetWindowsDefinition
-$SendMessage = Add-Type -TypeDefinition $SendMessageDefinition -PassThru
+$null = Add-Type -ErrorAction Stop -Name PowerUtil -Namespace Windows -MemberDefinition $PowerUtilDefinition
+$null = Add-Type -TypeDefinition $GetWindowsDefinition
+$null = Add-Type -TypeDefinition $SendMessageDefinition -PassThru
 
 
 # Also make VisualBasic available
-Add-Type -Assembly Microsoft.VisualBasic
+$null = Add-Type -Assembly Microsoft.VisualBasic
 
 
 <#
@@ -615,7 +615,7 @@ function Write-ErrorText {
         $string = $lines | Out-String
 
         Write-Host $string -ForegroundColor Red
-        Add-Content $logFileFullPath ($string)
+        $null = Add-Content $logFileFullPath ($string)
     }
 }
 
@@ -654,7 +654,7 @@ function Write-ColorText {
         Write-Host $text -ForegroundColor $foregroundColor
     }
 
-    Add-Content $logFileFullPath ($text)
+    $null = Add-Content $logFileFullPath ($text)
 }
 
 
@@ -678,7 +678,7 @@ function Write-Verbose {
             Write-Host(''.PadLeft(11, ' ') + '      + ' + $text) -ForegroundColor 'DarkGray'
         }
 
-        Add-Content $logFileFullPath (''.PadLeft(11, ' ') + '      + ' + $text)
+        $null = Add-Content $logFileFullPath (''.PadLeft(11, ' ') + '      + ' + $text)
     }
 }
 
@@ -703,7 +703,7 @@ function Write-Debug {
             Write-Host(''.PadLeft(11, ' ') + '      + ' + $text) -ForegroundColor 'DarkGray'
         }
 
-        Add-Content $logFileFullPath (''.PadLeft(11, ' ') + '      + ' + $text)
+        $null = Add-Content $logFileFullPath (''.PadLeft(11, ' ') + '      + ' + $text)
     }
 }
 
@@ -830,8 +830,8 @@ function Show-FinalSummary {
     # Use text-to-speech module to read the summary out loud if enabled in config
     if ( $settings.Notifications.readSummaryAloud ) {
         if ( ([System.AppDomain]::CurrentDomain.GetAssemblies()).Location -match 'System.Speech.dll' ) {
-            Add-Type -AssemblyName System.Speech
-            $synth = New-Object -TypeName System.Speech.Synthesis.SpeechSynthesizer
+            $null = Add-Type -AssemblyName System.Speech
+            $synth = New-Object -TypeName $type::Synthesis.SpeechSynthesizer
             $synth.speak($summaryMessage)
         } else {
             Write-ColorText('WARNING: No sound was played - the "readSummaryAloud" flag was set, but the system.speech.dll isn''t present or registered.') Yellow
@@ -872,7 +872,7 @@ function Get-PerformanceCounterLocalName {
 
     # 0 = ERROR_SUCCESS
     if ( $queryResult -eq 0 ) {
-        $Buffer.ToString().Substring(0, $BufferSize-1)
+        $null = $Buffer.ToString().Substring(0, $BufferSize-1)
     }
     else {
         Throw 'Get-PerformanceCounterLocalName : Unable to retrieve localized name. Check computer name and performance counter ID.'
@@ -944,73 +944,73 @@ function Get-PerformanceCounterIDs {
 ############################################################################## 
 function Invoke-WindowsApi {
     param(
-        [String] $dllName, 
-        [Type] $returnType, 
-        [String] $methodName,
-        [Type[]] $parameterTypes,
-        [Object[]] $parameters
+        [String] $dllName_tmp, 
+        [Type] $returnType_tmp, 
+        [String] $methodName_tmp,
+        [Type[]] $parameterTypes_tmp,
+        [Object[]] $parameters_tmp
     )
 
     ## Begin to build the dynamic assembly
-    $domain   = [AppDomain]::CurrentDomain
-    $name     = New-Object Reflection.AssemblyName 'PInvokeAssembly'
+    $domain_tmp   = [AppDomain]::CurrentDomain
+    $name_tmp     = New-Object Reflection.AssemblyName 'PInvokeAssembly'
 
     # TODO: This is potentially huge memory hog!
     # Only really noticable when using Aida64 though
     # Maybe this? https://stackoverflow.com/questions/2503645/reflect-emit-dynamic-type-memory-blowup
-    $assembly = $domain.DefineDynamicAssembly($name, 'Run')
+    $assembly_tmp = $domain_tmp.DefineDynamicAssembly($name_tmp, 'Run')
     
-    $module   = $assembly.DefineDynamicModule('PInvokeModule')
-    $type     = $module.DefineType('PInvokeType', 'Public,BeforeFieldInit')
+    $module_tmp   = $assembly_tmp.DefineDynamicModule('PInvokeModule')
+    $type_tmp     = $module_tmp.DefineType('PInvokeType', 'Public,BeforeFieldInit')
 
     ## Go through all of the parameters passed to us.  As we do this,
     ## we clone the user's inputs into another array that we will use for
     ## the P/Invoke call.  
-    $inputParameters = @()
-    $refParameters = @()
+    $inputParameters_tmp = @()
+    $refParameters_tmp = @()
 
-    for ($counter = 1; $counter -le $parameterTypes.Length; $counter++) {
+    for ($counter_tmp = 1; $counter_tmp -le $parameterTypes_tmp.Length; $counter_tmp++) {
        ## If an item is a PSReference, then the user 
        ## wants an [Out] parameter.
-       if ($parameterTypes[$counter - 1] -eq [Ref]) {
+       if ($parameterTypes_tmp[$counter_tmp - 1] -eq [Ref]) {
           ## Remember which parameters are used for [Out] parameters
-          $refParameters += $counter
+          $refParameters_tmp += $counter_tmp
 
           ## On the cloned array, we replace the PSReference type with the 
           ## .Net reference type that represents the value of the PSReference, 
           ## and the value with the value held by the PSReference.
-          $parameterTypes[$counter - 1] = $parameters[$counter - 1].Value.GetType().MakeByRefType()
-          $inputParameters += $parameters[$counter - 1].Value
+          $parameterTypes_tmp[$counter_tmp - 1] = $parameters_tmp[$counter_tmp - 1].Value.GetType().MakeByRefType()
+          $inputParameters_tmp += $parameters_tmp[$counter_tmp - 1].Value
        }
        else {
           ## Otherwise, just add their actual parameter to the
           ## input array.
-          $inputParameters += $parameters[$counter - 1]
+          $inputParameters_tmp += $parameters_tmp[$counter_tmp - 1]
        }
     }
 
     ## Define the actual P/Invoke method, adding the [Out]
     ## attribute for any parameters that were originally [Ref] 
     ## parameters.
-    $method = $type.DefineMethod($methodName, 'Public,HideBySig,Static,PinvokeImpl', $returnType, $parameterTypes)
+    $method_tmp = $type_tmp.DefineMethod($methodName_tmp, 'Public,HideBySig,Static,PinvokeImpl', $returnType_tmp, $parameterTypes_tmp)
     
-    foreach ($refParameter in $refParameters) {
-       [Void] $method.DefineParameter($refParameter, 'Out', $null)
+    foreach ($refParameter_tmp in $refParameters_tmp) {
+       $null = $method_tmp.DefineParameter($refParameter_tmp, 'Out', $null)
     }
 
     ## Apply the P/Invoke constructor
-    $ctor = [Runtime.InteropServices.DllImportAttribute].GetConstructor([String])
-    $attr = New-Object Reflection.Emit.CustomAttributeBuilder $ctor, $dllName
-    $method.SetCustomAttribute($attr)
+    $ctor_tmp = [Runtime.InteropServices.DllImportAttribute].GetConstructor([String])
+    $attr_tmp = New-Object Reflection.Emit.CustomAttributeBuilder $ctor_tmp, $dllName_tmp
+    $method_tmp.SetCustomAttribute($attr_tmp)
 
     ## Create the temporary type, and invoke the method.
-    $realType = $type.CreateType()
-    $realType.InvokeMember($methodName, 'Public,Static,InvokeMethod', $null, $null, $inputParameters)
+    $realType_tmp = $type_tmp.CreateType()
+    $realType_tmp.InvokeMember($methodName_tmp, 'Public,Static,InvokeMethod', $null, $null, $inputParameters_tmp)
 
     ## Finally, go through all of the reference parameters, and update the
     ## values of the PSReference objects that the user passed in.
-    foreach ($refParameter in $refParameters) {
-       $parameters[$refParameter - 1].Value = $inputParameters[$refParameter - 1]
+    foreach ($refParameter_tmp in $refParameters_tmp) {
+       $parameters_tmp[$refParameter_tmp - 1].Value = $inputParameters_tmp[$refParameter_tmp - 1]
     }
 
 
@@ -1018,45 +1018,11 @@ function Invoke-WindowsApi {
     # But it doesn't help
     # So this might be an issue with .NET / C# itself?
     # For example this? https://stackoverflow.com/questions/2503645/reflect-emit-dynamic-type-memory-blowup
-    $dllName         = $null
-    $returnType      = $null
-    $methodName      = $null
-    $parameters      = $null
-    $domain          = $null
-    $name            = $null
-    $assembly        = $null
-    $module          = $null
-    $type            = $null
-    $counter         = $null
-    $inputParameters = $null
-    $refParameters   = $null
-    $method          = $null
-    $ctor            = $null
-    $attr            = $null
-    $realType        = $null
-    $parameterTypes  = $null
-    $refParameter    = $null
+    # Eddga: found this https://www.jhouseconsulting.com/2017/09/25/addressing-the-powershell-garbage-collection-bug-1825 - maybe it helps
     
-    Remove-Variable -Force -Name 'dllName'
-    Remove-Variable -Force -Name 'returnType'
-    Remove-Variable -Force -Name 'methodName'
-    Remove-Variable -Force -Name 'parameters'
-    Remove-Variable -Force -Name 'domain'
-    Remove-Variable -Force -Name 'name'
-    Remove-Variable -Force -Name 'assembly'
-    Remove-Variable -Force -Name 'module'
-    Remove-Variable -Force -Name 'type'
-    Remove-Variable -Force -Name 'counter'
-    Remove-Variable -Force -Name 'inputParameters'
-    Remove-Variable -Force -Name 'refParameters'
-    Remove-Variable -Force -Name 'method'
-    Remove-Variable -Force -Name 'ctor'
-    Remove-Variable -Force -Name 'attr'
-    Remove-Variable -Force -Name 'realType'
-    Remove-Variable -Force -Name 'parameterTypes'
-    Remove-Variable -Force -Name 'refParameter'
+    Remove-Variable -Force -Name '*_tmp'
     
-    [System.GC]::Collect()
+    $null = [System.GC]::GetTotalMemory('forcefullcollection')
 }
 
 
@@ -1443,7 +1409,7 @@ function Import-Settings {
 
                     # Parse the hours, minutes, seconds
                     elseif ($valueLower.indexOf('h') -ge 0 -or $valueLower.indexOf('m') -ge 0 -or $valueLower.indexOf('s') -ge 0) {
-                        $hasMatched = $valueLower -match '(?-i)((?<hours>\d+(\.\d+)*)h)*\s*((?<minutes>\d+(\.\d+)*)m)*\s*((?<seconds>\d+(\.\d+)*)s)*'
+                        $null = $valueLower -match '(?-i)((?<hours>\d+(\.\d+)*)h)*\s*((?<minutes>\d+(\.\d+)*)m)*\s*((?<seconds>\d+(\.\d+)*)s)*'
                         $seconds = [Double] $Matches.hours * 60 * 60 + [Double] $Matches.minutes * 60 + [Double] $Matches.seconds
                         $thisSetting = [Int] $seconds
                     }
@@ -1553,7 +1519,7 @@ function Get-Settings {
             Exit-WithFatalError('Neither config.ini nor config.default.ini found!')
         }
 
-        Copy-Item -Path $configDefaultPath -Destination $configUserPath
+        $null = Copy-Item -Path $configDefaultPath -Destination $configUserPath
         $userSettings = Import-Settings $configUserPath
     }
 
@@ -1864,20 +1830,20 @@ function Send-CommandToAida64 {
     }
 
     # This sends an ALT + KEY keystroke to the Aida64 main window
-    [Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::WM_SYSKEYDOWN, $SendMessage::KEY_MENU, $SendMessage::GetLParam(1, $SendMessage::KEY_MENU, 0, 1, 0, 0))
-    [Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::WM_SYSKEYDOWN, $KEY,                   $SendMessage::GetLParam(1, $KEY, 0, 1, 0, 0))
-    #[Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::WM_SYSCHAR,    $KEY,                   $SendMessage::GetLParam(1, $KEY, 0, 1, 0, 0))
-    [Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP,        $SendMessage::KEY_MENU, $SendMessage::GetLParam(1, $SendMessage::KEY_MENU, 0, 0, 1, 1))
-    [Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP,        $KEY,                   $SendMessage::GetLParam(1, $KEY, 0, 0, 1, 1))
+    $null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::WM_SYSKEYDOWN, $SendMessage::KEY_MENU, $SendMessage::GetLParam(1, $SendMessage::KEY_MENU, 0, 1, 0, 0))
+    $null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::WM_SYSKEYDOWN, $KEY,                   $SendMessage::GetLParam(1, $KEY, 0, 1, 0, 0))
+    #$null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::WM_SYSCHAR,    $KEY,                   $SendMessage::GetLParam(1, $KEY, 0, 1, 0, 0))
+    $null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP,        $SendMessage::KEY_MENU, $SendMessage::GetLParam(1, $SendMessage::KEY_MENU, 0, 0, 1, 1))
+    $null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP,        $KEY,                   $SendMessage::GetLParam(1, $KEY, 0, 0, 1, 1))
 
 
     # DEBUG
     # Just to be able to see the entries in Spy++ more easily
-    #[Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
-    #[Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
-    #[Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
-    #[Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
-    #[Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
+    #$null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
+    #$null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
+    #$null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
+    #$null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
+    #$null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
 }
 
 
@@ -2130,33 +2096,6 @@ function Test-Prime95 {
 
 <#
 .DESCRIPTION
-    Get the version info for Prime95
-.PARAMETER 
-    [Void]
-.OUTPUTS
-    [Array] An array representing the version number (e.g. 30.8.0 -> [30, 8, 0])
-#>
-function Get-Prime95Version {
-    # This may be prime95 or prime95_dev
-    $p95Type = $settings.General.stressTestProgram
-    Write-Verbose('Checking the Prime95 version...')
-    $itemVersionInfo = (Get-Item ($stressTestPrograms[$p95Type]['fullPathToExe'] + '.' + $stressTestPrograms[$p95Type]['processNameExt'])).VersionInfo
-
-    $p95Version = $(
-        $itemVersionInfo.ProductMajorPart,
-        $itemVersionInfo.ProductMinorPart,
-        $itemVersionInfo.ProductBuildPart
-    )
-
-    Write-Verbose('Prime95 Version:')
-    Write-Verbose($p95Version)
-
-    return $p95Version
-}
-
-
-<#
-.DESCRIPTION
     Create the Prime95 config files (local.txt & prime.txt)
     This depends on the $settings.mode variable
     And also on the Prime95 version
@@ -2168,19 +2107,6 @@ function Get-Prime95Version {
 function Initialize-Prime95 {
     # This may be prime95 or prime95_dev
     $p95Type = $settings.General.stressTestProgram
-
-    # Get the Prime95 version, behavior has changed after 30.6
-    $prime95Version = Get-Prime95Version
-    $isPrime95_30_6 = $false
-    $isPrime95_30_7 = $false
-
-    if ($prime95Version[0] -le 30 -and $prime95Version[1] -le 6) {
-        $isPrime95_30_6 = $true
-    }
-    elseif ($prime95Version[0] -ge 30 -and $prime95Version[1] -ge 7) {
-        $isPrime95_30_7 = $true
-    }
-
 
     # Set various global variables we need for Prime95
     $Script:prime95CPUSettings = @{
@@ -2547,41 +2473,24 @@ function Initialize-Prime95 {
     }
 
 
-    Set-Content $configFile1 'RollingAverageIsFromV27=1'
-    
-    # Limit the load to the selected number of threads
-    Add-Content $configFile1 ('NumCPUs=1')                                                      # If this is not set, Prime95 will create 1 worker thread for each Core/Thread, seriously slowing down the computer!
-                                                                                                # In Prime95 30.7+, there's a new setting "NumCores", which seems to do the same as NumCPUs. The old setting may deprecate at some point
-    Add-Content $configFile1 ('CoresPerTest=1')
-    
-    Add-Content $configFile1 ('CpuSupportsSSE='     + $prime95CPUSettings[$modeString].CpuSupportsSSE)
-    Add-Content $configFile1 ('CpuSupportsSSE2='    + $prime95CPUSettings[$modeString].CpuSupportsSSE2)
-    Add-Content $configFile1 ('CpuSupportsAVX='     + $prime95CPUSettings[$modeString].CpuSupportsAVX)
-    Add-Content $configFile1 ('CpuSupportsAVX2='    + $prime95CPUSettings[$modeString].CpuSupportsAVX2)
-    Add-Content $configFile1 ('CpuSupportsFMA3='    + $prime95CPUSettings[$modeString].CpuSupportsFMA3)
-    Add-Content $configFile1 ('CpuSupportsAVX512F=' + $prime95CPUSettings[$modeString].CpuSupportsAVX512)
-    
-    
+    $content1 = @(
+        'RollingAverageIsFromV27=1',
+        # Limit the load to the selected number of threads
+        'NumCores=1',     # If this is not set, Prime95 will create 1 worker thread for each Core/Thread, seriously slowing down the computer!
+        'CoresPerTest=1',
+        "CpuSupportsSSE=$(      $prime95CPUSettings[$modeString].CpuSupportsSSE     )",
+        "CpuSupportsSSE2=$(     $prime95CPUSettings[$modeString].CpuSupportsSSE2    )",
+        "CpuSupportsAVX=$(      $prime95CPUSettings[$modeString].CpuSupportsAVX     )",
+        "CpuSupportsAVX2=$(     $prime95CPUSettings[$modeString].CpuSupportsAVX2    )",
+        "CpuSupportsFMA3=$(     $prime95CPUSettings[$modeString].CpuSupportsFMA3    )",
+        "CpuSupportsAVX512F=$(  $prime95CPUSettings[$modeString].CpuSupportsAVX512  )",
+        "NumThreads=$(          $settings.General.numberOfThreads                   )", # This has been renamed from CpuNumHyperthreads
+        "WorkerThreads=$(       $settings.General.numberOfThreads                   )"
+    ) -join "`r`n"
 
-    # Prime 30.6 and before:
-    if ($isPrime95_30_6) {
-        Add-Content $configFile1 ('CpuNumHyperthreads=' + $settings.General.numberOfThreads)       # If this is not set, Prime95 will create two worker threads in 30.6
-        Add-Content $configFile1 ('WorkerThreads='      + $settings.General.numberOfThreads)
-    }
-
-    # Prime 30.7 and above:
-    if ($isPrime95_30_7) {
-        # If this is not set, Prime95 will create #numCores worker threads in 30.7+
-        Add-Content $configFile1 ('NumThreads='    + $settings.General.numberOfThreads)             # This has been renamed from CpuNumHyperthreads
-        Add-Content $configFile1 ('WorkerThreads=' + $settings.General.numberOfThreads)
+    Set-Content -Path $configFile1 -Value $content1
         
-        # If we're using TortureHyperthreading in prime.txt, this needs to stay at 1, even if we're using 2 threads
-        # TortureHyperthreading introduces inconsistencies with the log format for two threads, so we won't use it
-        # Add-Content $configFile1 ('NumThreads=1')
-        # Add-Content $configFile1 ('WorkerThreads=1')
-    }
 
-    
     # Create the prime.txt and overwrite if necessary
     $null = New-Item $configFile2 -ItemType File -Force
 
@@ -2595,63 +2504,45 @@ function Initialize-Prime95 {
     # - set the working directory to the directory where the CoreCycler script is located
     # - then set the paths to the prime.txt and local.txt relative to that working directory
     # This should keep us below 80 characters
-    Set-Content $configFile2 ('WorkingDir='  + $PSScriptRoot)
-    
-    # Set the custom results.txt file name
-    Add-Content $configFile2 ('prime.ini='   + $stressTestPrograms[$p95Type]['processPath'] + '\prime.txt')
-    Add-Content $configFile2 ('local.ini='   + $stressTestPrograms[$p95Type]['processPath'] + '\local.txt')
-    Add-Content $configFile2 ('results.txt=' + $logFilePath + '\' + $stressTestLogFileName)
+    $content2 = @(
+        "WorkingDir=$PSScriptRoot",
 
+        # Set the custom results.txt file name
+        "prime.ini=$(   Join-Path $stressTestPrograms[$p95Type]['processPath'] 'prime.txt' )",
+        "local.ini=$(   Join-Path $stressTestPrograms[$p95Type]['processPath'] 'local.txt' )",
+        "results.txt=$( Join-Path $logFilePath $stressTestLogFileName                      )",
 
-    # New in Prime95 30.7
-    # TortureHyperthreading=0/1
-    # Goes into the prime.txt ($configFile2)
-    # If we set this here, we need to use NumThreads=1 in local.txt
-    # However, TortureHyperthreading introduces inconsistencies with the log format for two threads, so we won't use it
-    # Instead, we're using the "old" mechanic of running two worker threads (as in 30.6 and before)
-    if ($isPrime95_30_7) {
-        # Add-Content $configFile2 ('TortureHyperthreading=' + ($settings.General.numberOfThreads - 1))   # Number of Threads = 2 -> Setting = 1 / Number of Threads = 1 -> Setting = 0
-        Add-Content $configFile2 ('TortureHyperthreading=0')
-    }
+        # New in Prime95 30.7
+        # TortureHyperthreading=0/1
+        # Goes into the prime.txt ($configFile2)
+        # If we set this here, we need to use NumThreads=1 in local.txt
+        # However, TortureHyperthreading introduces inconsistencies with the log format for two threads, so we won't use it
+        # Instead, we're using the "old" mechanic of running two worker threads (as in 30.6 and before)
+        'TortureHyperthreading=0',
+        "TortureMem=$(  if ( $modeString -eq 'CUSTOM' ) { $settings.Custom.TortureMem } else {0}  )",       # 0 = No memory testing ("In-Place")
+        "TortureTime=$( if ( $modeString -eq 'CUSTOM' ) { $settings.Custom.TortureTime } else {1} )",       # 1 minute per FFT size
+        
+        # Set the FFT sizes        
+        "MinTortureFFT=$( [Math]::Floor($minFFTSize/1024)   )",     # The minimum FFT size to test
+        "MaxTortureFFT=$( [Math]::Ceiling($maxFFTSize/1024) )",     # The maximum FFT size to test
 
-    
-    # Custom settings
-    if ($modeString -eq 'CUSTOM') {
-        Add-Content $configFile2 ('TortureMem='  + $settings.Custom.TortureMem)
-        Add-Content $configFile2 ('TortureTime=' + $settings.Custom.TortureTime)
-    }
-    
-    # Default settings
-    else {
-        Add-Content $configFile2 ('TortureMem=0')                   # No memory testing ("In-Place")
-        Add-Content $configFile2 ('TortureTime=1')                  # 1 minute per FFT size
-    }
+        # Get the correct TortureWeak setting
+        "TortureWeak=$( Get-TortureWeakValue )",
+        'V24OptionsConverted=1',                    # Flag that the options were already converted from an older version (v24)
+        'V30OptionsConverted=1',                    # Flag that the options were already converted from an older version (v29)
+        'ExitOnX=1',                                # No minimizing to the tray on close (x)
+        'ResultsFileTimestampInterval=60',          # Write to the results.txt every 60 seconds
+        'EnableSetAffinity=0',                      # Don't let Prime automatically assign the CPU affinity, we're doing this on our own
+        'EnableSetPriority=0',                      # Don't let Prime automatically assign the CPU priority, we're setting it to "High"
+        
+        # No PrimeNet functionality, just stress testing
+        'StressTester=1',
+        'UsePrimenet=0'
+    ) -join "`r`n"
 
-    # Set the FFT sizes
-    Add-Content $configFile2 ('MinTortureFFT=' + [Math]::Floor($minFFTSize/1024))       # The minimum FFT size to test
-    Add-Content $configFile2 ('MaxTortureFFT=' + [Math]::Ceiling($maxFFTSize/1024))     # The maximum FFT size to test
-    
+    Set-Content -Path $configFile2 -Value $content2
 
-
-    # Get the correct TortureWeak setting
-    Add-Content $configFile2 ('TortureWeak=' + $(Get-TortureWeakValue))
-    
-    Add-Content $configFile2 ('V24OptionsConverted=1')              # Flag that the options were already converted from an older version (v24)
-    Add-Content $configFile2 ('V30OptionsConverted=1')              # Flag that the options were already converted from an older version (v29)
-    Add-Content $configFile2 ('ExitOnX=1')                          # No minimizing to the tray on close (x)
-    Add-Content $configFile2 ('ResultsFileTimestampInterval=60')    # Write to the results.txt every 60 seconds
-    Add-Content $configFile2 ('EnableSetAffinity=0')                # Don't let Prime automatically assign the CPU affinty, we're doing this on our own
-    Add-Content $configFile2 ('EnableSetPriority=0')                # Don't let Prime automatically assign the CPU priority, we're setting it to "High"
-    
-    # No PrimeNet functionality, just stress testing
-    Add-Content $configFile2 ('StressTester=1')
-    Add-Content $configFile2 ('UsePrimenet=0')
-
-    #Add-Content $configFile2 ('WGUID_version=2')                   # The algorithm used to generate the Windows GUID. Not important
-    #Add-Content $configFile2 ('WorkPreference=0')                  # This seems to be a PrimeNet only setting
-
-    #Add-Content $configFile2 ('[PrimeNet]')                        # Settings for uploading Prime results, not required
-    #Add-Content $configFile2 ('Debug=0')
+    Remove-Variable -Force -Name 'content*'
 }
 
 
@@ -2735,7 +2626,7 @@ function Close-Prime95 {
 
         # The process may be suspended
         if ($windowProcess) {
-            $resumed = Resume-ProcessWithDebugMethod $windowProcess
+            $null = Resume-ProcessWithDebugMethod $windowProcess
         }
 
         Write-Verbose('Trying to gracefully close Prime95')
@@ -2833,28 +2724,29 @@ function Initialize-Aida64 {
         Exit-WithFatalError('Could not create the config file at ' + $configFile1 + '!')
     }
 
-
-    Set-Content $configFile1 ('[Generic]')
-    Add-Content $configFile1 ('NoGUI=0')
-    Add-Content $configFile1 ('LoadWithWindows=0')
-    Add-Content $configFile1 ('SplashScreen=0')
-    Add-Content $configFile1 ('MinimizeToTray=0')
-    Add-Content $configFile1 ('Language=en')
-    Add-Content $configFile1 ('ReportHeader=0')
-    Add-Content $configFile1 ('ReportFooter=0')
-    Add-Content $configFile1 ('ReportMenu=0')
-    Add-Content $configFile1 ('ReportDebugInfo=0')
-    Add-Content $configFile1 ('ReportDebugInfoCSV=0')
-    Add-Content $configFile1 ('ReportHostInFPC=0')
-    Add-Content $configFile1 ('HWMonLogToHTM=0')
-    Add-Content $configFile1 ('HWMonLogToCSV=1')
-    Add-Content $configFile1 ('HWMonLogProcesses=0')
-    Add-Content $configFile1 ('HWMonPersistentLog=1')
-    Add-Content $configFile1 ('HWMonLogFileOpenFreq=24')
-    Add-Content $configFile1 ('HWMonHTMLogFile=')
-
-    # HWMonCSVLogFile=H:\_Overclock\CoreCycler\logs\Aida64_DATE_TIME_ETC.csv
-    Add-Content $configFile1 ('HWMonCSVLogFile=' + $stressTestLogFilePath)
+    $content1 = @(
+        '[Generic]',
+        'NoGUI=0',
+        'LoadWithWindows=0',
+        'SplashScreen=0',
+        'MinimizeToTray=0',
+        'Language=en',
+        'ReportHeader=0',
+        'ReportFooter=0',
+        'ReportMenu=0',
+        'ReportDebugInfo=0',
+        'ReportDebugInfoCSV=0',
+        'ReportHostInFPC=0',
+        'HWMonLogToHTM=0',
+        'HWMonLogToCSV=1',
+        'HWMonLogProcesses=0',
+        'HWMonPersistentLog=1',
+        'HWMonLogFileOpenFreq=24',
+        'HWMonHTMLogFile=',
+    
+        # $stressTestLogFilePath = 'H:\_Overclock\CoreCycler\logs\Aida64_DATE_TIME_ETC.csv'
+        "HWMonCSVLogFile=$stressTestLogFilePath"
+    )
 
     # Which items to include in the log file
     # Unfortunately most of these require admin privileges
@@ -2909,8 +2801,6 @@ function Initialize-Aida64 {
         $csvEntriesArr += 'PCPUPKG PCPUVDD'
     }
 
-    Add-Content $configFile1 ('HWMonLogItems=' + ($csvEntriesArr -Join ' '))
-
     <#
     HWMonLogItems=
     SDATE STIME
@@ -2924,6 +2814,11 @@ function Initialize-Aida64 {
     PCPUPKG PCPUVDD PCPUVDDNB
     #>
 
+    $content1 = ($content1 + 'HWMonLogItems=' + ($csvEntriesArr -Join ' ')) -join "`r`n"
+
+    Set-Content -Path $configFile1 -Value $content1
+
+
     # Create the aida64.sst.ini and overwrite if necessary
     $null = New-Item $configFile2 -ItemType File -Force
 
@@ -2933,24 +2828,24 @@ function Initialize-Aida64 {
     }
 
 
-    # Start the stress test on max 2 threads, not on all
-    Set-Content $configFile2 ('CPUMaskAuto=0')
+    $content2 = @(
+        # Start the stress test on max 2 threads, not on all
+        'CPUMaskAuto=0',
 
-    # Use AVX?
-    Add-Content $configFile2 ('UseAVX=' + $settings.Aida64.useAVX)
-    Add-Content $configFile2 ('UseAVX512=' + $settings.Aida64.useAVX)
+        # Use AVX?
+        "UseAVX=$(    $settings.Aida64.useAVX )",
+        "UseAVX512=$( $settings.Aida64.useAVX )",
 
-    # On CPU 2 & 3 if 2 threads
-    if ($settings.General.numberOfThreads -gt 1) {
-        Add-Content $configFile2 ('CPUMask=0x00000012')
-    }
-    # On CPU 2 if 1 thread
-    else {
-        Add-Content $configFile2 ('CPUMask=0x00000004')
-    }
+        # On CPU 2 & 3 if 2 threads | On CPU 2 if 1 thread
+        "CPUMask=$( if ( $settings.General.numberOfThreads -gt 1 ) { '0x00000012' } else { '0x00000004' } )",
     
-    # Set the maximum amount of memory during the RAM stress test
-    Add-Content $configFile2 ('MemAlloc=' + $settings.Aida64.maxMemory)
+        # Set the maximum amount of memory during the RAM stress test
+        "MemAlloc=$( $settings.Aida64.maxMemory )"
+    ) -join "`r`n"
+
+    Set-Content -Path $configFile2 -Value $content2
+
+    Remove-Variable -Force -Name 'content*'
 }
 
 
@@ -2970,9 +2865,6 @@ function Start-Aida64 {
 
     Write-Verbose('Starting Aida64')
     Write-Verbose('The flag to only start the stress test process is: ' + $startOnlyStressTest)
-
-    # Cache or RAM
-    $thisMode = $settings.Aida64.mode
 
     # Check if the main window process exists
     $checkWindowProcess = Get-Process $stressTestPrograms[$settings.General.stressTestProgram]['processName'] -ErrorAction Ignore
@@ -3126,7 +3018,7 @@ function Close-Aida64 {
 
         # The process may be suspended
         if ($thisStressTestProcess) {
-            $resumed = Resume-ProcessWithDebugMethod $thisStressTestProcess
+            $null = Resume-ProcessWithDebugMethod $thisStressTestProcess
         }
         else {
             Write-Verbose('The stress test process id is set, but no stress test process was found!')
@@ -3197,7 +3089,7 @@ function Close-Aida64 {
             # The process may be suspended
             if ($windowProcess) {
                 Write-Verbose('The process may be suspended, resuming')
-                $resumed = Resume-ProcessWithDebugMethod $windowProcess
+                $null = Resume-ProcessWithDebugMethod $windowProcess
             }
 
             Write-Verbose('Sending the close message to the main window')
@@ -3205,7 +3097,7 @@ function Close-Aida64 {
             # Send the message to close the main window
             # The window may still be blocked from the stress test process being closed, so repeat if necessary
             for ($i = 0; $i -lt 5; $i++) {
-                [Void] $SendMessage::SendMessage($windowProcessMainWindowHandler, $SendMessage::WM_CLOSE, 0, 0)
+                $null = $SendMessage::SendMessage($windowProcessMainWindowHandler, $SendMessage::WM_CLOSE, 0, 0)
 
                 # We've send the close request, let's wait a second for it to actually exit
                 if ($windowProcess -and !$windowProcess.HasExited) {
@@ -3317,58 +3209,31 @@ function Initialize-yCruncher {
     }
 
 
-    $coresLine      = '        LogicalCores : [2]'
-    $memoryLine     = '        TotalMemory : 13418572'
-    $stopOnError    = '        StopOnError : "true"'
-    $secondsPerTest = 60
-
-    if ($settings.General.numberOfThreads -gt 1) {
-        $coresLine  = '        LogicalCores : [2 3]'
-        $memoryLine = '        TotalMemory : 26567600'
-    }
-
-    # The allocated memory
-    if ($settings.yCruncher.memory -ne 'default') {
-        $memoryLine = '        TotalMemory : ' + $settings.yCruncher.memory
-    }
-
-    # Stop on error or not
-    if ($settings.yCruncher.enableYCruncherLoggingWrapper -eq 1 -and $settings.General.stopOnError -eq 0) {
-        $stopOnError = '        StopOnError : "false"'
-    }
-
     # The tests to run
     $testsToRun = $selectedTests | ForEach-Object { -Join('            "', $_, '"') }
 
-    # The duration per test
-    if ($settings.yCruncher.testDuration -gt 0) {
-        $secondsPerTest = $settings.yCruncher.testDuration
-    }
-
-
     $configEntries = @(
-        '{'
-        '    Action : "StressTest"'
-        '    StressTest : {'
-        '        AllocateLocally : "true"'
-        $coresLine
-        $memoryLine
-        '        SecondsPerTest : ' + $secondsPerTest
-        '        SecondsTotal : 0'
-        $stopOnError
-        '        Tests : ['
+        '{',
+        '    Action : "StressTest"',
+        '    StressTest : {',
+        '        AllocateLocally : "true"',
+        # Cores line
+        "        LogicalCores : [$( if ( $settings.General.numberOfThreads -gt 1 ) { '2 3' } else { '2' })]",
+        # Memory Line
+        "        TotalMemory : $( if ( $settings.yCruncher.memory -ne 'Default' ) { $settings.yCruncher.memory } elseif ( $settings.General.numberOfThreads -gt 1 ) { '2 3' } else { '13418572' })",
+        "        SecondsPerTest : $(if ( $settings.yCruncher.testDuration -gt 0 ) { $settings.yCruncher.testDuration } else { '60' })",   # The duration per test
+        '        SecondsTotal : 0',
+        "        StopOnError : $( if ( $settings.yCruncher.enableYCruncherLoggingWrapper -eq 1 -and $settings.General.stopOnError -eq 0 ) { '`"false`"' } else { '`"true`"' })",
+        '        Tests : [',
         $testsToRun
-        '        ]'
-        '    }'
+        '        ]',
+        '    }',
         '}'
-    )
+    ) -join "`r`n"
 
 
-    Set-Content $configFile ''
+    Set-Content -Path $configFile -Value $configEntries -Force
 
-    foreach ($entry in $configEntries) {
-        Add-Content $configFile $entry
-    }
 }
 
 
@@ -3382,8 +3247,6 @@ function Initialize-yCruncher {
 #>
 function Start-yCruncher {
     Write-Verbose('Starting y-Cruncher')
-
-    $thisMode = $settings.yCruncher.mode
 
     # Minimized to the tray
     #$processId = Start-Process -filepath $stressTestPrograms['ycruncher']['fullPathToExe'] -ArgumentList ('config "' + $stressTestConfigFilePath + '"') -PassThru -WindowStyle Hidden
@@ -3470,7 +3333,7 @@ function Close-yCruncher {
 
         # The process may be suspended
         if ($windowProcess) {
-            $resumed = Resume-ProcessWithDebugMethod $windowProcess
+            $null = Resume-ProcessWithDebugMethod $windowProcess
         }
 
         Write-Verbose('Trying to gracefully close y-Cruncher')
@@ -3786,7 +3649,6 @@ function Test-StressTestProgrammIsRunning {
         }
     }
 
-
     # We now have an error message, process
     if ($stressTestError) {
         Write-Verbose('There has been an error while running the stress test program!')
@@ -3978,10 +3840,8 @@ function Test-StressTestProgrammIsRunning {
                     }
 
                     Write-Verbose('The last 5 entries in the results.txt:')
-                    $lastFiveRows | ForEach-Object -Begin {
-                        $index = $allLogEntries.Count - 5
-                    } `
-                    -Process {
+                    $index = $allLogEntries.Count - 5
+                    $lastFiveRows | ForEach-Object {
                         Write-Verbose('- [Line ' + $index + '] ' + $_)
                         $index++
                     }
@@ -4018,10 +3878,8 @@ function Test-StressTestProgrammIsRunning {
 
 
                     Write-Verbose('The last 5 entries in the results.txt:')
-                    $lastFiveRows | ForEach-Object -Begin {
-                        $index = $allLogEntries.Count - 5
-                    } `
-                    -Process {
+                    $index = $allLogEntries.Count - 5
+                    $lastFiveRows | ForEach-Object {
                         Write-Verbose('- [Line ' + $index + '] ' + $_)
                         $index++
                     }
@@ -4119,10 +3977,8 @@ function Test-StressTestProgrammIsRunning {
 
 
             Write-Verbose('The last 20 entries of the output:')
-            $lastTwentyRows | ForEach-Object -Begin {
-                $index = $allLogEntries.Count - 20
-            } `
-            -Process {
+            $index = $allLogEntries.Count - 20
+            $lastTwentyRows | ForEach-Object {
                 Write-Verbose('- [Line ' + $index + '] ' + $_)
                 $index++
             }
@@ -4209,16 +4065,16 @@ function Get-NewLogfileEntries {
     $streamReader.DiscardBufferedData()
 
     # Set the pointer to the last file position (offset, beginning)
-    [Void] $streamReader.BaseStream.Seek($lastFilePosition, [System.IO.SeekOrigin]::Begin)
+    $null = $streamReader.BaseStream.Seek($lastFilePosition, [System.IO.SeekOrigin]::Begin)
 
     # Get all the new lines since the last check
     while ($streamReader.Peek() -gt -1) {
         $lineCounter++
         $line = $streamReader.ReadLine()
 
-        [Void] $Script:allLogEntries.Add($line)
+        $null = $Script:allLogEntries.Add($line)
 
-        [Void] $Script:newLogEntries.Add(@{
+        $null = $Script:newLogEntries.Add(@{
             LineNumber = $lineCounter
             Line       = $line
         })
@@ -4597,10 +4453,6 @@ elseif ($settings.General.coreTestOrder -match '\d+') {
 
 # Wrap the main functionality in a try {} block, so that the finally {} block is executed even if CTRL+C is pressed
 try {
-    # Prevent sleep while the script is running (but allow the monitor to turn off)
-    [Windows.PowerUtil]::StayAwake($true, $false, 'CoreCycler is currently running.')
-
-
     # Check if the stress test process is already running
     $stressTestProcess = Get-Process $processName -ErrorAction Ignore
 
@@ -4793,7 +4645,7 @@ try {
             function Write-Verbose { ${function:Write-Verbose} }
 "@)
 
-        $clearAidaMessages = Start-Job -ScriptBlock {
+        $null = Start-Job -ScriptBlock {
             param(
                 $SendMessageDefinition,
                 $windowProcessMainWindowHandler,
@@ -4801,7 +4653,7 @@ try {
                 $logFileFullPath
             )
 
-            $SendMessage = Add-Type -TypeDefinition $SendMessageDefinition -PassThru
+            $null = Add-Type -TypeDefinition $SendMessageDefinition -PassThru
 
             Start-Sleep 3
 
@@ -4930,6 +4782,12 @@ try {
             $uniquePassedTests  = [System.Collections.ArrayList]::new()
             $proceedToNextCore  = $false
             $fftSizeOverflow    = $false
+
+            # Every 10 minutes refresh the power request to keep the PC awake
+            if (($(Get-Date) - $startDateTime).Minutes % 10 -eq 0) {
+                # Prevent sleep while the script is running (but allow the monitor to turn off)
+                [Windows.PowerUtil]::StayAwake($true, $false, 'CoreCycler is currently running.')
+            }
 
             Write-Verbose('Still available cores: ' + ($coreTestOrderArray -Join ', '))
 
@@ -5241,7 +5099,7 @@ try {
                 if ($useAutomaticRuntimePerCore -and $isPrime95) {
                     :LoopCheckForAutomaticRuntime while ($true) {
                         $timestamp = Get-Date -format HH:mm:ss
-                        $proceed = $false
+                        # deletevar? $proceed = $false
                         $foundFFTSizeLines = @()
 
                         Write-Debug($timestamp + ' - Automatic runtime per core selected')
@@ -5395,7 +5253,7 @@ try {
                                 ($allFFTLogEntries.Count -gt 0 -and $currentResultLineEntry.LineNumber -ne $allFFTLogEntries[$allFFTLogEntries.Count-1].LineNumber)`
                             ) {
                                 Write-Debug('           + Adding this line to the allFFTLogEntries array')
-                                [Void] $allFFTLogEntries.Add($currentResultLineEntry)
+                                $null = $allFFTLogEntries.Add($currentResultLineEntry)
                             }
 
 
@@ -5419,10 +5277,10 @@ try {
                                 Write-Debug('           - The current passed FFT size  - new: ' + ($currentPassedFFTSize/1024) + 'K')
 
                                 # Enter the last passed FFT sizes arrays, both all and unique
-                                [Void] $allPassedFFTs.Add($currentPassedFFTSize)
+                                $null = $allPassedFFTs.Add($currentPassedFFTSize)
 
                                 if (!($uniquePassedFFTs -contains $currentPassedFFTSize)) {
-                                    [Void] $uniquePassedFFTs.Add($currentPassedFFTSize)
+                                    $null = $uniquePassedFFTs.Add($currentPassedFFTSize)
                                 }
 
                                 
@@ -5482,7 +5340,7 @@ try {
                 elseif ($useAutomaticRuntimePerCore -and $isYCruncherWithLogging) {
                     :LoopCheckForAutomaticRuntime while ($true) {
                         $timestamp = Get-Date -format HH:mm:ss
-                        $proceed = $false
+                        # deletevar? $proceed = $false
                         $foundPassedTestLines = @()
 
                         Write-Debug($timestamp + ' - Automatic runtime per core selected')
@@ -5571,7 +5429,7 @@ try {
                                 ($allTestLogEntries.Count -gt 0 -and $currentResultLineEntry.LineNumber -ne $allTestLogEntries[$allTestLogEntries.Count-1].LineNumber)`
                             ) {
                                 Write-Debug('           + Adding this line to the allTestLogEntries array')
-                                [Void] $allTestLogEntries.Add($currentResultLineEntry)
+                                $null = $allTestLogEntries.Add($currentResultLineEntry)
                             }
 
 
@@ -5641,10 +5499,10 @@ try {
                             Write-Debug('           - The current passed test  - new: ' + $currentPassedTest)
 
                             # Enter the last passed test arrays, both all and unique
-                            [Void] $allPassedTests.Add($currentPassedTest)
+                            $null = $allPassedTests.Add($currentPassedTest)
 
                             if (!($uniquePassedTests -contains $currentPassedTest)) {
-                                [Void] $uniquePassedTests.Add($currentPassedTest)
+                                $null = $uniquePassedTests.Add($currentPassedTest)
                             }
 
                             
