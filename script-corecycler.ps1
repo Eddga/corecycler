@@ -2444,27 +2444,22 @@ function Initialize-Prime95 {
     }
 
 
-    Set-Content $configFile1 'RollingAverageIsFromV27=1'
-    
-    # Limit the load to the selected number of threads
-    Add-Content $configFile1 ('NumCPUs=1')                                                      # If this is not set, Prime95 will create 1 worker thread for each Core/Thread, seriously slowing down the computer!
-    Add-Content $configFile1 ('CoresPerTest=1')
-    
-    Add-Content $configFile1 ('CpuSupportsSSE='     + $prime95CPUSettings[$modeString].CpuSupportsSSE)
-    Add-Content $configFile1 ('CpuSupportsSSE2='    + $prime95CPUSettings[$modeString].CpuSupportsSSE2)
-    Add-Content $configFile1 ('CpuSupportsAVX='     + $prime95CPUSettings[$modeString].CpuSupportsAVX)
-    Add-Content $configFile1 ('CpuSupportsAVX2='    + $prime95CPUSettings[$modeString].CpuSupportsAVX2)
-    Add-Content $configFile1 ('CpuSupportsFMA3='    + $prime95CPUSettings[$modeString].CpuSupportsFMA3)
-    Add-Content $configFile1 ('CpuSupportsAVX512F=' + $prime95CPUSettings[$modeString].CpuSupportsAVX512)
-    
-    # If this is not set, Prime95 will create #numCores worker threads in 30.7+
-    Add-Content $configFile1 ('NumThreads='    + $settings.General.numberOfThreads)             # This has been renamed from CpuNumHyperthreads
-    Add-Content $configFile1 ('WorkerThreads=' + $settings.General.numberOfThreads)
-        
-    # If we're using TortureHyperthreading in prime.txt, this needs to stay at 1, even if we're using 2 threads
-    # TortureHyperthreading introduces inconsistencies with the log format for two threads, so we won't use it
-    # Add-Content $configFile1 ('NumThreads=1')
-    # Add-Content $configFile1 ('WorkerThreads=1')
+    $content1 = @(
+        'RollingAverageIsFromV27=1',
+        # Limit the load to the selected number of threads
+        'NumCores=1',     # If this is not set, Prime95 will create 1 worker thread for each Core/Thread, seriously slowing down the computer!
+        'CoresPerTest=1',
+        "CpuSupportsSSE=$(      $prime95CPUSettings[$modeString].CpuSupportsSSE     )",
+        "CpuSupportsSSE2=$(     $prime95CPUSettings[$modeString].CpuSupportsSSE2    )",
+        "CpuSupportsAVX=$(      $prime95CPUSettings[$modeString].CpuSupportsAVX     )",
+        "CpuSupportsAVX2=$(     $prime95CPUSettings[$modeString].CpuSupportsAVX2    )",
+        "CpuSupportsFMA3=$(     $prime95CPUSettings[$modeString].CpuSupportsFMA3    )",
+        "CpuSupportsAVX512F=$(  $prime95CPUSettings[$modeString].CpuSupportsAVX512  )",
+        "NumThreads=$(          $settings.General.numberOfThreads                   )", # This has been renamed from CpuNumHyperthreads
+        "WorkerThreads=$(       $settings.General.numberOfThreads                   )"
+    ) -join "`r`n"
+
+    Set-Content -Path $configFile1 -Value $content1
 
     
     # Create the prime.txt and overwrite if necessary
@@ -2480,62 +2475,45 @@ function Initialize-Prime95 {
     # - set the working directory to the directory where the CoreCycler script is located
     # - then set the paths to the prime.txt and local.txt relative to that working directory
     # This should keep us below 80 characters
-    Set-Content $configFile2 ('WorkingDir='  + $root)
-    
-    # Set the custom results.txt file name
-    Add-Content $configFile2 ('prime.ini='   + $stressTestPrograms[$p95Type]['processPath'] + '\prime.txt')
-    Add-Content $configFile2 ('local.ini='   + $stressTestPrograms[$p95Type]['processPath'] + '\local.txt')
-    Add-Content $configFile2 ('results.txt=' + $logFilePath + '\' + $stressTestLogFileName)
+    $content2 = @(
+        "WorkingDir=$root",
 
+        # Set the custom results.txt file name
+        "prime.ini=$(   Join-Path $stressTestPrograms[$p95Type]['processPath'] 'prime.txt' )",
+        "local.ini=$(   Join-Path $stressTestPrograms[$p95Type]['processPath'] 'local.txt' )",
+        "results.txt=$( Join-Path $logFilePath $stressTestLogFileName                      )",
 
-    # New in Prime95 30.7
-    # TortureHyperthreading=0/1
-    # Goes into the prime.txt ($configFile2)
-    # If we set this here, we need to use NumThreads=1 in local.txt
-    # However, TortureHyperthreading introduces inconsistencies with the log format for two threads, so we won't use it
-    # Instead, we're using the "old" mechanic of running two worker threads (as in 30.6 and before)
+        # New in Prime95 30.7
+        # TortureHyperthreading=0/1
+        # Goes into the prime.txt ($configFile2)
+        # If we set this here, we need to use NumThreads=1 in local.txt
+        # However, TortureHyperthreading introduces inconsistencies with the log format for two threads, so we won't use it
+        # Instead, we're using the "old" mechanic of running two worker threads (as in 30.6 and before)
+        'TortureHyperthreading=0',
+        "TortureMem=$(  if ( $modeString -eq 'CUSTOM' ) { $settings.Custom.TortureMem } else {0}  )",       # 0 = No memory testing ("In-Place")
+        "TortureTime=$( if ( $modeString -eq 'CUSTOM' ) { $settings.Custom.TortureTime } else {1} )",       # 1 minute per FFT size
+        
+        # Set the FFT sizes        
+        "MinTortureFFT=$( [Math]::Floor($minFFTSize/1024)   )",     # The minimum FFT size to test
+        "MaxTortureFFT=$( [Math]::Ceiling($maxFFTSize/1024) )",     # The maximum FFT size to test
 
-    # Add-Content $configFile2 ('TortureHyperthreading=' + ($settings.General.numberOfThreads - 1))   # Number of Threads = 2 -> Setting = 1 / Number of Threads = 1 -> Setting = 0
-    Add-Content $configFile2 ('TortureHyperthreading=0')
+        # Get the correct TortureWeak setting
+        "TortureWeak=$( Get-TortureWeakValue )",
+        'V24OptionsConverted=1',                    # Flag that the options were already converted from an older version (v24)
+        'V30OptionsConverted=1',                    # Flag that the options were already converted from an older version (v29)
+        'ExitOnX=1',                                # No minimizing to the tray on close (x)
+        'ResultsFileTimestampInterval=60',          # Write to the results.txt every 60 seconds
+        'EnableSetAffinity=0',                      # Don't let Prime automatically assign the CPU affinity, we're doing this on our own
+        'EnableSetPriority=0',                      # Don't let Prime automatically assign the CPU priority, we're setting it to "High"
+        
+        # No PrimeNet functionality, just stress testing
+        'StressTester=1',
+        'UsePrimenet=0'
+    ) -join "`r`n"
 
-    
-    # Custom settings
-    if ($modeString -eq 'CUSTOM') {
-        Add-Content $configFile2 ('TortureMem='  + $settings.Custom.TortureMem)
-        Add-Content $configFile2 ('TortureTime=' + $settings.Custom.TortureTime)
-    }
-    
-    # Default settings
-    else {
-        Add-Content $configFile2 ('TortureMem=0')                   # No memory testing ("In-Place")
-        Add-Content $configFile2 ('TortureTime=1')                  # 1 minute per FFT size
-    }
+    Set-Content -Path $configFile2 -Value $content2
 
-    # Set the FFT sizes
-    Add-Content $configFile2 ('MinTortureFFT=' + [Math]::Floor($minFFTSize/1024))       # The minimum FFT size to test
-    Add-Content $configFile2 ('MaxTortureFFT=' + [Math]::Ceiling($maxFFTSize/1024))     # The maximum FFT size to test
-    
-
-
-    # Get the correct TortureWeak setting
-    Add-Content $configFile2 ('TortureWeak=' + $(Get-TortureWeakValue))
-    
-    Add-Content $configFile2 ('V24OptionsConverted=1')              # Flag that the options were already converted from an older version (v24)
-    Add-Content $configFile2 ('V30OptionsConverted=1')              # Flag that the options were already converted from an older version (v29)
-    Add-Content $configFile2 ('ExitOnX=1')                          # No minimizing to the tray on close (x)
-    Add-Content $configFile2 ('ResultsFileTimestampInterval=60')    # Write to the results.txt every 60 seconds
-    Add-Content $configFile2 ('EnableSetAffinity=0')                # Don't let Prime automatically assign the CPU affinty, we're doing this on our own
-    Add-Content $configFile2 ('EnableSetPriority=0')                # Don't let Prime automatically assign the CPU priority, we're setting it to "High"
-    
-    # No PrimeNet functionality, just stress testing
-    Add-Content $configFile2 ('StressTester=1')
-    Add-Content $configFile2 ('UsePrimenet=0')
-
-    #Add-Content $configFile2 ('WGUID_version=2')                   # The algorithm used to generate the Windows GUID. Not important
-    #Add-Content $configFile2 ('WorkPreference=0')                  # This seems to be a PrimeNet only setting
-
-    #Add-Content $configFile2 ('[PrimeNet]')                        # Settings for uploading Prime results, not required
-    #Add-Content $configFile2 ('Debug=0')
+    Remove-Variable -Force -Name 'content*'
 }
 
 
@@ -2717,28 +2695,29 @@ function Initialize-Aida64 {
         Exit-WithFatalError('Could not create the config file at ' + $configFile1 + '!')
     }
 
-
-    Set-Content $configFile1 ('[Generic]')
-    Add-Content $configFile1 ('NoGUI=0')
-    Add-Content $configFile1 ('LoadWithWindows=0')
-    Add-Content $configFile1 ('SplashScreen=0')
-    Add-Content $configFile1 ('MinimizeToTray=0')
-    Add-Content $configFile1 ('Language=en')
-    Add-Content $configFile1 ('ReportHeader=0')
-    Add-Content $configFile1 ('ReportFooter=0')
-    Add-Content $configFile1 ('ReportMenu=0')
-    Add-Content $configFile1 ('ReportDebugInfo=0')
-    Add-Content $configFile1 ('ReportDebugInfoCSV=0')
-    Add-Content $configFile1 ('ReportHostInFPC=0')
-    Add-Content $configFile1 ('HWMonLogToHTM=0')
-    Add-Content $configFile1 ('HWMonLogToCSV=1')
-    Add-Content $configFile1 ('HWMonLogProcesses=0')
-    Add-Content $configFile1 ('HWMonPersistentLog=1')
-    Add-Content $configFile1 ('HWMonLogFileOpenFreq=24')
-    Add-Content $configFile1 ('HWMonHTMLogFile=')
-
-    # HWMonCSVLogFile=H:\_Overclock\CoreCycler\logs\Aida64_DATE_TIME_ETC.csv
-    Add-Content $configFile1 ('HWMonCSVLogFile=' + $stressTestLogFilePath)
+    $content1 = @(
+        '[Generic]',
+        'NoGUI=0',
+        'LoadWithWindows=0',
+        'SplashScreen=0',
+        'MinimizeToTray=0',
+        'Language=en',
+        'ReportHeader=0',
+        'ReportFooter=0',
+        'ReportMenu=0',
+        'ReportDebugInfo=0',
+        'ReportDebugInfoCSV=0',
+        'ReportHostInFPC=0',
+        'HWMonLogToHTM=0',
+        'HWMonLogToCSV=1',
+        'HWMonLogProcesses=0',
+        'HWMonPersistentLog=1',
+        'HWMonLogFileOpenFreq=24',
+        'HWMonHTMLogFile=',
+    
+        # $stressTestLogFilePath = 'H:\_Overclock\CoreCycler\logs\Aida64_DATE_TIME_ETC.csv'
+        "HWMonCSVLogFile=$stressTestLogFilePath"
+    )
 
     # Which items to include in the log file
     # Unfortunately most of these require admin privileges
@@ -2793,8 +2772,6 @@ function Initialize-Aida64 {
         $csvEntriesArr += 'PCPUPKG PCPUVDD'
     }
 
-    Add-Content $configFile1 ('HWMonLogItems=' + ($csvEntriesArr -Join ' '))
-
     <#
     HWMonLogItems=
     SDATE STIME
@@ -2808,6 +2785,11 @@ function Initialize-Aida64 {
     PCPUPKG PCPUVDD PCPUVDDNB
     #>
 
+    $content1 = ($content1 + 'HWMonLogItems=' + ($csvEntriesArr -Join ' ')) -join "`r`n"
+
+    Set-Content -Path $configFile1 -Value $content1
+
+
     # Create the aida64.sst.ini and overwrite if necessary
     $null = New-Item $configFile2 -ItemType File -Force
 
@@ -2817,24 +2799,24 @@ function Initialize-Aida64 {
     }
 
 
-    # Start the stress test on max 2 threads, not on all
-    Set-Content $configFile2 ('CPUMaskAuto=0')
+    $content2 = @(
+        # Start the stress test on max 2 threads, not on all
+        'CPUMaskAuto=0',
 
-    # Use AVX?
-    Add-Content $configFile2 ('UseAVX=' + $settings.Aida64.useAVX)
-    Add-Content $configFile2 ('UseAVX512=' + $settings.Aida64.useAVX)
+        # Use AVX?
+        "UseAVX=$(    $settings.Aida64.useAVX )",
+        "UseAVX512=$( $settings.Aida64.useAVX )",
 
-    # On CPU 2 & 3 if 2 threads
-    if ($settings.General.numberOfThreads -gt 1) {
-        Add-Content $configFile2 ('CPUMask=0x00000012')
-    }
-    # On CPU 2 if 1 thread
-    else {
-        Add-Content $configFile2 ('CPUMask=0x00000004')
-    }
+        # On CPU 2 & 3 if 2 threads | On CPU 2 if 1 thread
+        "CPUMask=$( if ( $settings.General.numberOfThreads -gt 1 ) { '0x00000012' } else { '0x00000004' } )",
     
-    # Set the maximum amount of memory during the RAM stress test
-    Add-Content $configFile2 ('MemAlloc=' + $settings.Aida64.maxMemory)
+        # Set the maximum amount of memory during the RAM stress test
+        "MemAlloc=$( $settings.Aida64.maxMemory )"
+    ) -join "`r`n"
+
+    Set-Content -Path $configFile2 -Value $content2
+
+    Remove-Variable -Force -Name 'content*'
 }
 
 
@@ -3201,58 +3183,32 @@ function Initialize-yCruncher {
     }
 
 
-    $coresLine      = '        LogicalCores : [2]'
-    $memoryLine     = '        TotalMemory : 13418572'
-    $stopOnError    = '        StopOnError : "true"'
-    $secondsPerTest = 60
-
-    if ($settings.General.numberOfThreads -gt 1) {
-        $coresLine  = '        LogicalCores : [2 3]'
-        $memoryLine = '        TotalMemory : 26567600'
-    }
-
-    # The allocated memory
-    if ($settings.yCruncher.memory -ne 'default') {
-        $memoryLine = '        TotalMemory : ' + $settings.yCruncher.memory
-    }
-
-    # Stop on error or not
-    if ($settings.yCruncher.enableYCruncherLoggingWrapper -eq 1 -and $settings.General.stopOnError -eq 0) {
-        $stopOnError = '        StopOnError : "false"'
-    }
-
     # The tests to run
     $testsToRun = $selectedTests | ForEach-Object { -Join('            "', $_, '"') }
 
-    # The duration per test
-    if ($settings.yCruncher.testDuration -gt 0) {
-        $secondsPerTest = $settings.yCruncher.testDuration
-    }
-
-
-    $configEntries = @(
-        '{'
-        '    Action : "StressTest"'
-        '    StressTest : {'
-        '        AllocateLocally : "true"'
-        $coresLine
-        $memoryLine
-        '        SecondsPerTest : ' + $secondsPerTest
-        '        SecondsTotal : 0'
-        $stopOnError
-        '        Tests : ['
+    $configEntries = (@(
+        '',
+        '{',
+        '    Action : "StressTest"',
+        '    StressTest : {',
+        '        AllocateLocally : "true"',
+        # Cores line
+        "        LogicalCores : [$( if ( $settings.General.numberOfThreads -gt 1 ) { '2 3' } else { '2' })]",
+        # Memory Line
+        "        TotalMemory : $( if ( $settings.yCruncher.memory -ne 'Default' ) { $settings.yCruncher.memory } elseif ( $settings.General.numberOfThreads -gt 1 ) { '2 3' } else { '13418572' })",
+        "        SecondsPerTest : $(if ( $settings.yCruncher.testDuration -gt 0 ) { $settings.yCruncher.testDuration } else { '60' })",   # The duration per test
+        '        SecondsTotal : 0',
+        "        StopOnError : $( if ( $settings.yCruncher.enableYCruncherLoggingWrapper -eq 1 -and $settings.General.stopOnError -eq 0 ) { '`"false`"' } else { '`"true`"' })",
+        '        Tests : [',
         $testsToRun
-        '        ]'
-        '    }'
+        '        ]',
+        '    }',
         '}'
-    )
+    ) | ForEach-Object { $_ }) -join "`r`n"
 
 
-    Set-Content $configFile ''
+    Set-Content -Path $configFile -Value $configEntries -Force
 
-    foreach ($entry in $configEntries) {
-        Add-Content $configFile $entry
-    }
 }
 
 
