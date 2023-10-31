@@ -1,6 +1,6 @@
 <#
 .AUTHOR
-    sp00n
+    sp00n, Eddga
 .VERSION
     0.9.5.0alpha2
 .DESCRIPTION
@@ -36,7 +36,7 @@ $processCounterPathId       = $null
 $processCounterPathTime     = $null
 $coresWithError             = $null
 $coresWithErrorsCounter     = $null
-#$previousError              = $null
+#deletevar? $previousError              = $null
 $stressTestLogFileName      = $null
 $stressTestLogFilePath      = $null
 $prime95CPUSettings         = $null
@@ -798,7 +798,7 @@ function Show-FinalSummary {
     Write-ColorText('The script ran for ' + $runTimeString) Cyan
     
 
-    # Display the cores with  error
+    # Display the cores with error
     if ( $coresWithError.Length -gt 0 ) {
         $coresWithErrorString = (($coresWithError | Sort-Object) -Join ', ')
         Write-ColorText('The following cores have thrown an error: ') Cyan
@@ -1413,7 +1413,7 @@ function Import-Settings {
 
                     # Parse the hours, minutes, seconds
                     elseif ($valueLower.indexOf('h') -ge 0 -or $valueLower.indexOf('m') -ge 0 -or $valueLower.indexOf('s') -ge 0) {
-                        $hasMatched = $valueLower -match '(?-i)((?<hours>\d+(\.\d+)*)h)*\s*((?<minutes>\d+(\.\d+)*)m)*\s*((?<seconds>\d+(\.\d+)*)s)*'
+                        $null = $valueLower -match '(?-i)((?<hours>\d+(\.\d+)*)h)*\s*((?<minutes>\d+(\.\d+)*)m)*\s*((?<seconds>\d+(\.\d+)*)s)*'
                         $seconds = [Double] $Matches.hours * 60 * 60 + [Double] $Matches.minutes * 60 + [Double] $Matches.seconds
                         $thisSetting = [Int] $seconds
                     }
@@ -1829,20 +1829,20 @@ function Send-CommandToAida64 {
     }
 
     # This sends an ALT + KEY keystroke to the Aida64 main window
-    [Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::WM_SYSKEYDOWN, $SendMessage::KEY_MENU, $SendMessage::GetLParam(1, $SendMessage::KEY_MENU, 0, 1, 0, 0))
-    [Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::WM_SYSKEYDOWN, $KEY,                   $SendMessage::GetLParam(1, $KEY, 0, 1, 0, 0))
-    #[Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::WM_SYSCHAR,    $KEY,                   $SendMessage::GetLParam(1, $KEY, 0, 1, 0, 0))
-    [Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP,        $SendMessage::KEY_MENU, $SendMessage::GetLParam(1, $SendMessage::KEY_MENU, 0, 0, 1, 1))
-    [Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP,        $KEY,                   $SendMessage::GetLParam(1, $KEY, 0, 0, 1, 1))
+    $null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::WM_SYSKEYDOWN, $SendMessage::KEY_MENU, $SendMessage::GetLParam(1, $SendMessage::KEY_MENU, 0, 1, 0, 0))
+    $null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::WM_SYSKEYDOWN, $KEY,                   $SendMessage::GetLParam(1, $KEY, 0, 1, 0, 0))
+    #$null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::WM_SYSCHAR,    $KEY,                   $SendMessage::GetLParam(1, $KEY, 0, 1, 0, 0))
+    $null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP,        $SendMessage::KEY_MENU, $SendMessage::GetLParam(1, $SendMessage::KEY_MENU, 0, 0, 1, 1))
+    $null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP,        $KEY,                   $SendMessage::GetLParam(1, $KEY, 0, 0, 1, 1))
 
 
     # DEBUG
     # Just to be able to see the entries in Spy++ more easily
-    #[Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
-    #[Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
-    #[Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
-    #[Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
-    #[Void] $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
+    #$null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
+    #$null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
+    #$null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
+    #$null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
+    #$null = $SendMessage::PostMessage($windowProcessMainWindowHandler, $SendMessage::KEY_UP, 0, $SendMessage::GetLParam(0, 0, 0, 0, 0, 0))
 }
 
 
@@ -2700,7 +2700,7 @@ function Close-Prime95 {
 
         # The process may be suspended
         if ($windowProcess) {
-            $resumed = Resume-ProcessWithDebugMethod $windowProcess
+            $null = Resume-ProcessWithDebugMethod $windowProcess
         }
 
         Write-Verbose('Trying to gracefully close Prime95')
@@ -2937,7 +2937,7 @@ function Start-Aida64 {
     Write-Verbose('The flag to only start the stress test process is: ' + $startOnlyStressTest)
 
     # Cache or RAM
-    $thisMode = $settings.Aida64.mode
+    #deletevar? $thisMode = $settings.Aida64.mode
 
     # Check if the main window process exists
     $checkWindowProcess = Get-Process $stressTestPrograms[$settings.General.stressTestProgram]['processName'] -ErrorAction Ignore
@@ -3091,7 +3091,7 @@ function Close-Aida64 {
 
         # The process may be suspended
         if ($thisStressTestProcess) {
-            $resumed = Resume-ProcessWithDebugMethod $thisStressTestProcess
+            $null = Resume-ProcessWithDebugMethod $thisStressTestProcess
         }
         else {
             Write-Verbose('The stress test process id is set, but no stress test process was found!')
@@ -3162,7 +3162,7 @@ function Close-Aida64 {
             # The process may be suspended
             if ($windowProcess) {
                 Write-Verbose('The process may be suspended, resuming')
-                $resumed = Resume-ProcessWithDebugMethod $windowProcess
+                $null = Resume-ProcessWithDebugMethod $windowProcess
             }
 
             Write-Verbose('Sending the close message to the main window')
@@ -3170,7 +3170,7 @@ function Close-Aida64 {
             # Send the message to close the main window
             # The window may still be blocked from the stress test process being closed, so repeat if necessary
             for ($i = 0; $i -lt 5; $i++) {
-                [Void] $SendMessage::SendMessage($windowProcessMainWindowHandler, $SendMessage::WM_CLOSE, 0, 0)
+                $null = $SendMessage::SendMessage($windowProcessMainWindowHandler, $SendMessage::WM_CLOSE, 0, 0)
 
                 # We've send the close request, let's wait a second for it to actually exit
                 if ($windowProcess -and !$windowProcess.HasExited) {
@@ -3348,7 +3348,7 @@ function Initialize-yCruncher {
 function Start-yCruncher {
     Write-Verbose('Starting y-Cruncher')
 
-    $thisMode = $settings.yCruncher.mode
+    #deletevar? $thisMode = $settings.yCruncher.mode
 
     # Minimized to the tray
     #$processId = Start-Process -filepath $stressTestPrograms['ycruncher']['fullPathToExe'] -ArgumentList ('config "' + $stressTestConfigFilePath + '"') -PassThru -WindowStyle Hidden
@@ -3435,7 +3435,7 @@ function Close-yCruncher {
 
         # The process may be suspended
         if ($windowProcess) {
-            $resumed = Resume-ProcessWithDebugMethod $windowProcess
+            $null = Resume-ProcessWithDebugMethod $windowProcess
         }
 
         Write-Verbose('Trying to gracefully close y-Cruncher')
@@ -3751,7 +3751,6 @@ function Test-StressTestProgrammIsRunning {
         }
     }
 
-
     # We now have an error message, process
     if ($stressTestError) {
         Write-Verbose('There has been an error while running the stress test program!')
@@ -3943,10 +3942,8 @@ function Test-StressTestProgrammIsRunning {
                     }
 
                     Write-Verbose('The last 5 entries in the results.txt:')
-                    $lastFiveRows | ForEach-Object -Begin {
-                        $index = $allLogEntries.Count - 5
-                    } `
-                    -Process {
+                    $index = $allLogEntries.Count - 5
+                    $lastFiveRows | ForEach-Object {
                         Write-Verbose('- [Line ' + $index + '] ' + $_)
                         $index++
                     }
@@ -3983,10 +3980,8 @@ function Test-StressTestProgrammIsRunning {
 
 
                     Write-Verbose('The last 5 entries in the results.txt:')
-                    $lastFiveRows | ForEach-Object -Begin {
-                        $index = $allLogEntries.Count - 5
-                    } `
-                    -Process {
+                    $index = $allLogEntries.Count - 5                    
+                    $lastFiveRows | ForEach-Object {
                         Write-Verbose('- [Line ' + $index + '] ' + $_)
                         $index++
                     }
@@ -4032,7 +4027,7 @@ function Test-StressTestProgrammIsRunning {
             $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error\(s\).*'} | Select-Object -Last 1
             
             if ($errorResults.Length -gt 0) {
-                $lastLineEntry  = $lastTwentyRows | Select-String -Pattern $errorResults.Line -SimpleMatch | Select-Object -First 1 | Select-Object Line,LineNumber
+                $lastLineEntry  = $lastTwentyRows | Select-String -Pattern $errorResults.Line -SimpleMatch | Select-Object -Property Line,LineNumber -First 1
                 $lastLineNumber = $lastLineEntry.LineNumber
             }
             else {
@@ -4084,10 +4079,8 @@ function Test-StressTestProgrammIsRunning {
 
 
             Write-Verbose('The last 20 entries of the output:')
-            $lastTwentyRows | ForEach-Object -Begin {
-                $index = $allLogEntries.Count - 20
-            } `
-            -Process {
+            $index = $allLogEntries.Count - 20
+            $lastTwentyRows | ForEach-Object {
                 Write-Verbose('- [Line ' + $index + '] ' + $_)
                 $index++
             }
@@ -4174,16 +4167,16 @@ function Get-NewLogfileEntries {
     $streamReader.DiscardBufferedData()
 
     # Set the pointer to the last file position (offset, beginning)
-    [Void] $streamReader.BaseStream.Seek($lastFilePosition, [System.IO.SeekOrigin]::Begin)
+    $null = $streamReader.BaseStream.Seek($lastFilePosition, [System.IO.SeekOrigin]::Begin)
 
     # Get all the new lines since the last check
     while ($streamReader.Peek() -gt -1) {
         $lineCounter++
         $line = $streamReader.ReadLine()
 
-        [Void] $Script:allLogEntries.Add($line)
+        $null = $Script:allLogEntries.Add($line)
 
-        [Void] $Script:newLogEntries.Add(@{
+        $null = $Script:newLogEntries.Add(@{
             LineNumber = $lineCounter
             Line       = $line
         })
@@ -4758,7 +4751,7 @@ try {
             function Write-Verbose { ${function:Write-Verbose} }
 "@)
 
-        $clearAidaMessages = Start-Job -ScriptBlock {
+        $null = Start-Job -ScriptBlock {
             param(
                 $SendMessageDefinition,
                 $windowProcessMainWindowHandler,
@@ -5206,7 +5199,7 @@ try {
                 if ($useAutomaticRuntimePerCore -and $isPrime95) {
                     :LoopCheckForAutomaticRuntime while ($true) {
                         $timestamp = Get-Date -format HH:mm:ss
-                        $proceed = $false
+                        # deletevar? $proceed = $false
                         $foundFFTSizeLines = @()
 
                         Write-Debug($timestamp + ' - Automatic runtime per core selected')
@@ -5360,7 +5353,7 @@ try {
                                 ($allFFTLogEntries.Count -gt 0 -and $currentResultLineEntry.LineNumber -ne $allFFTLogEntries[$allFFTLogEntries.Count-1].LineNumber)`
                             ) {
                                 Write-Debug('           + Adding this line to the allFFTLogEntries array')
-                                [Void] $allFFTLogEntries.Add($currentResultLineEntry)
+                                $null = $allFFTLogEntries.Add($currentResultLineEntry)
                             }
 
 
@@ -5384,10 +5377,10 @@ try {
                                 Write-Debug('           - The current passed FFT size  - new: ' + ($currentPassedFFTSize/1024) + 'K')
 
                                 # Enter the last passed FFT sizes arrays, both all and unique
-                                [Void] $allPassedFFTs.Add($currentPassedFFTSize)
+                                $null = $allPassedFFTs.Add($currentPassedFFTSize)
 
                                 if (!($uniquePassedFFTs -contains $currentPassedFFTSize)) {
-                                    [Void] $uniquePassedFFTs.Add($currentPassedFFTSize)
+                                    $null = $uniquePassedFFTs.Add($currentPassedFFTSize)
                                 }
 
                                 
@@ -5447,7 +5440,7 @@ try {
                 elseif ($useAutomaticRuntimePerCore -and $isYCruncherWithLogging) {
                     :LoopCheckForAutomaticRuntime while ($true) {
                         $timestamp = Get-Date -format HH:mm:ss
-                        $proceed = $false
+                        # deletevar? $proceed = $false
                         $foundPassedTestLines = @()
 
                         Write-Debug($timestamp + ' - Automatic runtime per core selected')
@@ -5536,7 +5529,7 @@ try {
                                 ($allTestLogEntries.Count -gt 0 -and $currentResultLineEntry.LineNumber -ne $allTestLogEntries[$allTestLogEntries.Count-1].LineNumber)`
                             ) {
                                 Write-Debug('           + Adding this line to the allTestLogEntries array')
-                                [Void] $allTestLogEntries.Add($currentResultLineEntry)
+                                $null = $allTestLogEntries.Add($currentResultLineEntry)
                             }
 
 
@@ -5606,10 +5599,10 @@ try {
                             Write-Debug('           - The current passed test  - new: ' + $currentPassedTest)
 
                             # Enter the last passed test arrays, both all and unique
-                            [Void] $allPassedTests.Add($currentPassedTest)
+                            $null = $allPassedTests.Add($currentPassedTest)
 
                             if (!($uniquePassedTests -contains $currentPassedTest)) {
-                                [Void] $uniquePassedTests.Add($currentPassedTest)
+                                $null = $uniquePassedTests.Add($currentPassedTest)
                             }
 
                             
