@@ -62,7 +62,7 @@ $coreTestOrderMode          = $null
 $coreTestOrderCustom        = @()
 $scriptExit                 = $false
 $fatalError                 = $false
-#$otherError                 = $false
+#deletevar? $otherError                 = $false
 $previousFileSize           = $null
 $previousPassedFFTSize      = $null
 $previousPassedFFTEntry     = $null
@@ -2067,33 +2067,6 @@ function Test-Prime95 {
 
 <#
 .DESCRIPTION
-    Get the version info for Prime95
-.PARAMETER 
-    [Void]
-.OUTPUTS
-    [Array] An array representing the version number (e.g. 30.8.0 -> [30, 8, 0])
-#>
-function Get-Prime95Version {
-    # This may be prime95 or prime95_dev
-    $p95Type = $settings.General.stressTestProgram
-    Write-Verbose('Checking the Prime95 version...')
-    $itemVersionInfo = (Get-Item ($stressTestPrograms[$p95Type]['fullPathToExe'] + '.' + $stressTestPrograms[$p95Type]['processNameExt'])).VersionInfo
-
-    $p95Version = $(
-        $itemVersionInfo.ProductMajorPart,
-        $itemVersionInfo.ProductMinorPart,
-        $itemVersionInfo.ProductBuildPart
-    )
-
-    Write-Verbose('Prime95 Version:')
-    Write-Verbose($p95Version)
-
-    return $p95Version
-}
-
-
-<#
-.DESCRIPTION
     Create the Prime95 config files (local.txt & prime.txt)
     This depends on the $settings.mode variable
     And also on the Prime95 version
@@ -2105,19 +2078,6 @@ function Get-Prime95Version {
 function Initialize-Prime95 {
     # This may be prime95 or prime95_dev
     $p95Type = $settings.General.stressTestProgram
-
-    # Get the Prime95 version, behavior has changed after 30.6
-    $prime95Version = Get-Prime95Version
-    $isPrime95_30_6 = $false
-    $isPrime95_30_7 = $false
-
-    if ($prime95Version[0] -le 30 -and $prime95Version[1] -le 6) {
-        $isPrime95_30_6 = $true
-    }
-    elseif ($prime95Version[0] -ge 30 -and $prime95Version[1] -ge 7) {
-        $isPrime95_30_7 = $true
-    }
-
 
     # Set various global variables we need for Prime95
     $Script:prime95CPUSettings = @{
@@ -2488,7 +2448,6 @@ function Initialize-Prime95 {
     
     # Limit the load to the selected number of threads
     Add-Content $configFile1 ('NumCPUs=1')                                                      # If this is not set, Prime95 will create 1 worker thread for each Core/Thread, seriously slowing down the computer!
-                                                                                                # In Prime95 30.7+, there's a new setting "NumCores", which seems to do the same as NumCPUs. The old setting may deprecate at some point
     Add-Content $configFile1 ('CoresPerTest=1')
     
     Add-Content $configFile1 ('CpuSupportsSSE='     + $prime95CPUSettings[$modeString].CpuSupportsSSE)
@@ -2498,25 +2457,14 @@ function Initialize-Prime95 {
     Add-Content $configFile1 ('CpuSupportsFMA3='    + $prime95CPUSettings[$modeString].CpuSupportsFMA3)
     Add-Content $configFile1 ('CpuSupportsAVX512F=' + $prime95CPUSettings[$modeString].CpuSupportsAVX512)
     
-    
-
-    # Prime 30.6 and before:
-    if ($isPrime95_30_6) {
-        Add-Content $configFile1 ('CpuNumHyperthreads=' + $settings.General.numberOfThreads)       # If this is not set, Prime95 will create two worker threads in 30.6
-        Add-Content $configFile1 ('WorkerThreads='      + $settings.General.numberOfThreads)
-    }
-
-    # Prime 30.7 and above:
-    if ($isPrime95_30_7) {
-        # If this is not set, Prime95 will create #numCores worker threads in 30.7+
-        Add-Content $configFile1 ('NumThreads='    + $settings.General.numberOfThreads)             # This has been renamed from CpuNumHyperthreads
-        Add-Content $configFile1 ('WorkerThreads=' + $settings.General.numberOfThreads)
+    # If this is not set, Prime95 will create #numCores worker threads in 30.7+
+    Add-Content $configFile1 ('NumThreads='    + $settings.General.numberOfThreads)             # This has been renamed from CpuNumHyperthreads
+    Add-Content $configFile1 ('WorkerThreads=' + $settings.General.numberOfThreads)
         
-        # If we're using TortureHyperthreading in prime.txt, this needs to stay at 1, even if we're using 2 threads
-        # TortureHyperthreading introduces inconsistencies with the log format for two threads, so we won't use it
-        # Add-Content $configFile1 ('NumThreads=1')
-        # Add-Content $configFile1 ('WorkerThreads=1')
-    }
+    # If we're using TortureHyperthreading in prime.txt, this needs to stay at 1, even if we're using 2 threads
+    # TortureHyperthreading introduces inconsistencies with the log format for two threads, so we won't use it
+    # Add-Content $configFile1 ('NumThreads=1')
+    # Add-Content $configFile1 ('WorkerThreads=1')
 
     
     # Create the prime.txt and overwrite if necessary
@@ -2546,10 +2494,9 @@ function Initialize-Prime95 {
     # If we set this here, we need to use NumThreads=1 in local.txt
     # However, TortureHyperthreading introduces inconsistencies with the log format for two threads, so we won't use it
     # Instead, we're using the "old" mechanic of running two worker threads (as in 30.6 and before)
-    if ($isPrime95_30_7) {
-        # Add-Content $configFile2 ('TortureHyperthreading=' + ($settings.General.numberOfThreads - 1))   # Number of Threads = 2 -> Setting = 1 / Number of Threads = 1 -> Setting = 0
-        Add-Content $configFile2 ('TortureHyperthreading=0')
-    }
+
+    # Add-Content $configFile2 ('TortureHyperthreading=' + ($settings.General.numberOfThreads - 1))   # Number of Threads = 2 -> Setting = 1 / Number of Threads = 1 -> Setting = 0
+    Add-Content $configFile2 ('TortureHyperthreading=0')
 
     
     # Custom settings
