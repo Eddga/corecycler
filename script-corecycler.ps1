@@ -894,99 +894,99 @@ function Get-PerformanceCounterIDs {
 
 
 ############################################################################## 
-## 
-## Invoke-WindowsApi.ps1 
+##
+## Invoke-WindowsApi.ps1
 ##
 ## http://www.leeholmes.com/blog/2007/10/02/managing-ini-files-with-powershell/
 ##
-## From PowerShell Cookbook (O’Reilly) 
-## by Lee Holmes (http://www.leeholmes.com/guide) 
+## From PowerShell Cookbook (O’Reilly)
+## by Lee Holmes (http://www.leeholmes.com/guide)
 ## 
-## Invoke a native Windows API call that takes and returns simple data types. 
-## 
-## ie: 
-## 
-## ## Prepare the parameter types and parameters for the  
-## CreateHardLink function 
-## $parameterTypes = [String], [String], [IntPtr] 
-## $parameters = [String] $filename, [String] $existingFilename, [IntPtr]::Zero 
-##  
-## ## Call the CreateHardLink method in the Kernel32 DLL 
+## Invoke a native Windows API call that takes and returns simple data types.
+##
+## ie:
+##
+## ## Prepare the parameter types and parameters for the
+## CreateHardLink function
+## $parameterTypes = [String], [String], [IntPtr]
+## $parameters = [String] $filename, [String] $existingFilename, [IntPtr]::Zero
+##
+## ## Call the CreateHardLink method in the Kernel32 DLL
 ## $result = Invoke-WindowsApi "kernel32" ([Bool]) "CreateHardLink" `
-##     $parameterTypes $parameters 
-## 
+##     $parameterTypes $parameters
+##
 ############################################################################## 
 # Unfortunately this introduces a memory leak when called multiple times in a row
 ############################################################################## 
 function Invoke-WindowsApi {
     param(
-        [String] $dllName, 
-        [Type] $returnType, 
-        [String] $methodName,
-        [Type[]] $parameterTypes,
-        [Object[]] $parameters
+        [String] $dllName_tmp, 
+        [Type] $returnType_tmp, 
+        [String] $methodName_tmp,
+        [Type[]] $parameterTypes_tmp,
+        [Object[]] $parameters_tmp
     )
 
     ## Begin to build the dynamic assembly
-    $domain   = [AppDomain]::CurrentDomain
-    $name     = New-Object Reflection.AssemblyName 'PInvokeAssembly'
+    $domain_tmp   = [AppDomain]::CurrentDomain
+    $name_tmp     = New-Object Reflection.AssemblyName 'PInvokeAssembly'
 
     # TODO: This is potentially huge memory hog!
     # Only really noticable when using Aida64 though
     # Maybe this? https://stackoverflow.com/questions/2503645/reflect-emit-dynamic-type-memory-blowup
-    $assembly = $domain.DefineDynamicAssembly($name, 'Run')
+    $assembly_tmp = $domain_tmp.DefineDynamicAssembly($name_tmp, 'Run')
     
-    $module   = $assembly.DefineDynamicModule('PInvokeModule')
-    $type     = $module.DefineType('PInvokeType', 'Public,BeforeFieldInit')
+    $module_tmp   = $assembly_tmp.DefineDynamicModule('PInvokeModule')
+    $type_tmp     = $module_tmp.DefineType('PInvokeType', 'Public,BeforeFieldInit')
 
     ## Go through all of the parameters passed to us.  As we do this,
     ## we clone the user's inputs into another array that we will use for
     ## the P/Invoke call.  
-    $inputParameters = @()
-    $refParameters = @()
+    $inputParameters_tmp = @()
+    $refParameters_tmp = @()
 
-    for ($counter = 1; $counter -le $parameterTypes.Length; $counter++) {
+    for ($counter_tmp = 1; $counter_tmp -le $parameterTypes_tmp.Length; $counter_tmp++) {
        ## If an item is a PSReference, then the user 
        ## wants an [Out] parameter.
-       if ($parameterTypes[$counter - 1] -eq [Ref]) {
+       if ($parameterTypes_tmp[$counter_tmp - 1] -eq [Ref]) {
           ## Remember which parameters are used for [Out] parameters
-          $refParameters += $counter
+          $refParameters_tmp += $counter_tmp
 
           ## On the cloned array, we replace the PSReference type with the 
           ## .Net reference type that represents the value of the PSReference, 
           ## and the value with the value held by the PSReference.
-          $parameterTypes[$counter - 1] = $parameters[$counter - 1].Value.GetType().MakeByRefType()
-          $inputParameters += $parameters[$counter - 1].Value
+          $parameterTypes_tmp[$counter_tmp - 1] = $parameters_tmp[$counter_tmp - 1].Value.GetType().MakeByRefType()
+          $inputParameters_tmp += $parameters_tmp[$counter_tmp - 1].Value
        }
        else {
           ## Otherwise, just add their actual parameter to the
           ## input array.
-          $inputParameters += $parameters[$counter - 1]
+          $inputParameters_tmp += $parameters_tmp[$counter_tmp - 1]
        }
     }
 
     ## Define the actual P/Invoke method, adding the [Out]
     ## attribute for any parameters that were originally [Ref] 
     ## parameters.
-    $method = $type.DefineMethod($methodName, 'Public,HideBySig,Static,PinvokeImpl', $returnType, $parameterTypes)
+    $method_tmp = $type_tmp.DefineMethod($methodName_tmp, 'Public,HideBySig,Static,PinvokeImpl', $returnType_tmp, $parameterTypes_tmp)
     
-    foreach ($refParameter in $refParameters) {
-       [Void] $method.DefineParameter($refParameter, 'Out', $null)
+    foreach ($refParameter_tmp in $refParameters_tmp) {
+       $null = $method_tmp.DefineParameter($refParameter_tmp, 'Out', $null)
     }
 
     ## Apply the P/Invoke constructor
-    $ctor = [Runtime.InteropServices.DllImportAttribute].GetConstructor([String])
-    $attr = New-Object Reflection.Emit.CustomAttributeBuilder $ctor, $dllName
-    $method.SetCustomAttribute($attr)
+    $ctor_tmp = [Runtime.InteropServices.DllImportAttribute].GetConstructor([String])
+    $attr_tmp = New-Object Reflection.Emit.CustomAttributeBuilder $ctor_tmp, $dllName_tmp
+    $method_tmp.SetCustomAttribute($attr_tmp)
 
     ## Create the temporary type, and invoke the method.
-    $realType = $type.CreateType()
-    $realType.InvokeMember($methodName, 'Public,Static,InvokeMethod', $null, $null, $inputParameters)
+    $realType_tmp = $type_tmp.CreateType()
+    $realType_tmp.InvokeMember($methodName_tmp, 'Public,Static,InvokeMethod', $null, $null, $inputParameters_tmp)
 
     ## Finally, go through all of the reference parameters, and update the
     ## values of the PSReference objects that the user passed in.
-    foreach ($refParameter in $refParameters) {
-       $parameters[$refParameter - 1].Value = $inputParameters[$refParameter - 1]
+    foreach ($refParameter_tmp in $refParameters_tmp) {
+       $parameters_tmp[$refParameter_tmp - 1].Value = $inputParameters_tmp[$refParameter_tmp - 1]
     }
 
 
@@ -994,45 +994,11 @@ function Invoke-WindowsApi {
     # But it doesn't help
     # So this might be an issue with .NET / C# itself?
     # For example this? https://stackoverflow.com/questions/2503645/reflect-emit-dynamic-type-memory-blowup
-    $dllName         = $null
-    $returnType      = $null
-    $methodName      = $null
-    $parameters      = $null
-    $domain          = $null
-    $name            = $null
-    $assembly        = $null
-    $module          = $null
-    $type            = $null
-    $counter         = $null
-    $inputParameters = $null
-    $refParameters   = $null
-    $method          = $null
-    $ctor            = $null
-    $attr            = $null
-    $realType        = $null
-    $parameterTypes  = $null
-    $refParameter    = $null
+    # Eddga: found this https://www.jhouseconsulting.com/2017/09/25/addressing-the-powershell-garbage-collection-bug-1825 - maybe it helps
     
-    Remove-Variable -Force -Name 'dllName'
-    Remove-Variable -Force -Name 'returnType'
-    Remove-Variable -Force -Name 'methodName'
-    Remove-Variable -Force -Name 'parameters'
-    Remove-Variable -Force -Name 'domain'
-    Remove-Variable -Force -Name 'name'
-    Remove-Variable -Force -Name 'assembly'
-    Remove-Variable -Force -Name 'module'
-    Remove-Variable -Force -Name 'type'
-    Remove-Variable -Force -Name 'counter'
-    Remove-Variable -Force -Name 'inputParameters'
-    Remove-Variable -Force -Name 'refParameters'
-    Remove-Variable -Force -Name 'method'
-    Remove-Variable -Force -Name 'ctor'
-    Remove-Variable -Force -Name 'attr'
-    Remove-Variable -Force -Name 'realType'
-    Remove-Variable -Force -Name 'parameterTypes'
-    Remove-Variable -Force -Name 'refParameter'
+    Remove-Variable -Force -Name '*_tmp'
     
-    [System.GC]::Collect()
+    $null = [System.GC]::GetTotalMemory('forcefullcollection')
 }
 
 
