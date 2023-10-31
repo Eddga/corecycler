@@ -213,7 +213,6 @@ $stressTestPrograms = @{
         'commandWithLogging'  = 'cmd /C start /MIN "y-Cruncher - %fileName%" "%helpersPath%WriteConsoleToWriteFileWrapper.exe" "%fullPathToLoadExe%" priority:2 config "%configFilePath%" /dlllog:"%logFilePath%"'
         'windowBehaviour'     = 6
         'testModes'           = @(
-            '00-x86',
             '04-P4P',
             '05-A64 ~ Kasumi',
             '08-NHM ~ Ushio',
@@ -222,7 +221,6 @@ $stressTestPrograms = @{
             '14-BDW ~ Kurumi',
             '17-ZN1 ~ Yukina',
             '19-ZN2 ~ Kagari',
-            '20-ZN3 ~ Yuzuki',
 
             # The following settings seem to be designed for Intel CPUs and don't run on Ryzen CPUs
             '11-BD1 ~ Miyu',
@@ -232,8 +230,8 @@ $stressTestPrograms = @{
             # This setting is designed for Ryzen 7000 (Zen 4) CPUs and uses AVX-512
             '22-ZN4 ~ Kizuna'
         )
-        'availableTests'      = @('BKT', 'BBP', 'SFT', 'FFT', 'N32', 'N64', 'HNT', 'VST', 'C17')
-        'defaultTests'        = @('BKT', 'BBP', 'SFT', 'FFT', 'N32', 'N64', 'HNT', 'VST')
+        'availableTests'      = @('BKT', 'BBP', 'SFT', 'FFT', 'N63', 'VT3')
+        'defaultTests'        = @('BKT', 'BBP', 'SFT', 'FFT', 'N63', 'VT3')
         'windowNames'         = @(
             '' # Depends on the selected modeYCruncher
         )
@@ -295,7 +293,7 @@ $isHyperthreadingEnabled = ($numLogicalCores -gt $numPhysCores)
 
 # Override the HashTable .ToString() method to generate readable output
 # https://www.sapien.com/blog/2014/10/21/a-better-tostring-method-for-hash-tables/
-$null = Update-TypeData -TypeName System.Collections.HashTable `
+Update-TypeData -TypeName System.Collections.HashTable `
 -MemberType ScriptMethod `
 -MemberName ToString `
 -Value { `
@@ -570,13 +568,13 @@ $SendMessageDefinition = @'
 
 
 # Make the external code definitions available to PowerShell
-$null = Add-Type -ErrorAction Stop -Name PowerUtil -Namespace Windows -MemberDefinition $PowerUtilDefinition
-$null = Add-Type -TypeDefinition $GetWindowsDefinition
-$null = Add-Type -TypeDefinition $SendMessageDefinition -PassThru
+Add-Type -ErrorAction Stop -Name PowerUtil -Namespace Windows -MemberDefinition $PowerUtilDefinition
+Add-Type -TypeDefinition $GetWindowsDefinition
+$SendMessage = Add-Type -TypeDefinition $SendMessageDefinition -PassThru
 
 
 # Also make VisualBasic available
-$null = Add-Type -Assembly Microsoft.VisualBasic
+Add-Type -Assembly Microsoft.VisualBasic
 
 
 <#
@@ -621,7 +619,7 @@ function Write-ErrorText {
         $string = $lines | Out-String
 
         Write-Host $string -ForegroundColor Red
-        $null = Add-Content $logFileFullPath ($string)
+        Add-Content $logFileFullPath ($string)
     }
 }
 
@@ -660,7 +658,7 @@ function Write-ColorText {
         Write-Host $text -ForegroundColor $foregroundColor
     }
 
-    $null = Add-Content $logFileFullPath ($text)
+    Add-Content $logFileFullPath ($text)
 }
 
 
@@ -684,7 +682,7 @@ function Write-Verbose {
             Write-Host(''.PadLeft(11, ' ') + '      + ' + $text) -ForegroundColor 'DarkGray'
         }
 
-        $null = Add-Content $logFileFullPath (''.PadLeft(11, ' ') + '      + ' + $text)
+        Add-Content $logFileFullPath (''.PadLeft(11, ' ') + '      + ' + $text)
     }
 }
 
@@ -709,7 +707,7 @@ function Write-Debug {
             Write-Host(''.PadLeft(11, ' ') + '      + ' + $text) -ForegroundColor 'DarkGray'
         }
 
-        $null = Add-Content $logFileFullPath (''.PadLeft(11, ' ') + '      + ' + $text)
+        Add-Content $logFileFullPath (''.PadLeft(11, ' ') + '      + ' + $text)
     }
 }
 
@@ -814,17 +812,19 @@ function Show-FinalSummary {
         Write-ColorText('The following cores have thrown an error: ') Cyan
         Write-ColorText(' - ' + $coresWithErrorString) Cyan
         $summaryMessage = "The following cores have thrown an error: $coresWithErrorString"
-        $soundFile = if ( $successSoundFile -match '^[^\\]*$' ) { (Get-ChildItem $env:windir\Media -Filter $errorSoundFile | Select-Object -First 1).FullName } else { $errorSoundFile }
+        $soundFile = $errorSoundFile
     }
     else {
         $summaryMessage = 'No core has thrown an error'
         Write-ColorText($summaryMessage) Cyan
-        $soundFile = if ( $successSoundFile -match '^[^\\]*$' ) { (Get-ChildItem $env:windir\Media -Filter $successSoundFile | Select-Object -First 1).FullName } else { $successSoundFile }
+        $soundFile = $successSoundFile
     }
 
 
     # Play an error or success sound if enabled in config and file is present
     if ( $settings.Notifications.playSummarySound ) {
+        $soundFile = if ( [IO.Path]::GetExtension($soundFile) -ne '.wav' ) { $soundFile + '.wav' }
+        $soundFile = if ( $soundFile -match '^[^\\]*$' ) { (Get-ChildItem $env:windir\Media -Filter $soundFile | Select-Object -First 1).FullName } else { $errorSoundFile }
         if ( Test-Path $soundFile ) {
             (New-Object Media.SoundPlayer $soundFile).Play()
         } else {
@@ -833,11 +833,11 @@ function Show-FinalSummary {
     }
 
 
-    # Use text-to-speech module to read the summary out loud if enabled in config
+    # Use text-to-speech module to read the summary out loud if enabled in config - https://stackoverflow.com/a/69205851
     if ( $settings.Notifications.readSummaryAloud ) {
-        if ( ([System.AppDomain]::CurrentDomain.GetAssemblies()).Location -match 'System.Speech.dll' ) {
+        if ( Get-ChildItem "$env:windir\assembly", "$env:ProgramFiles\Reference Assemblies\Microsoft\Framework", "${env:ProgramFiles(x86)}\Reference Assemblies\Microsoft\Framework" -Filter 'System.Speech.dll' -Recurse ) {
             $null = Add-Type -AssemblyName System.Speech
-            $synth = New-Object -TypeName $type::Synthesis.SpeechSynthesizer
+            $synth = New-Object -TypeName System.Speech.Synthesis.SpeechSynthesizer
             $synth.speak($summaryMessage)
         } else {
             Write-ColorText('WARNING: No sound was played - the "readSummaryAloud" flag was set, but the system.speech.dll isn''t present or registered.') Yellow
@@ -878,7 +878,7 @@ function Get-PerformanceCounterLocalName {
 
     # 0 = ERROR_SUCCESS
     if ( $queryResult -eq 0 ) {
-        $null = $Buffer.ToString().Substring(0, $BufferSize-1)
+        $Buffer.ToString().Substring(0, $BufferSize-1)
     }
     else {
         Throw 'Get-PerformanceCounterLocalName : Unable to retrieve localized name. Check computer name and performance counter ID.'
@@ -1316,7 +1316,7 @@ function Import-Settings {
     )
 
     # Certain setting values are strings
-    $settingsWithStrings = @('stressTestProgram', 'stressTestProgramPriority', 'name', 'mode', 'FFTSize', 'coreTestOrder', 'tests', 'memory')
+    $settingsWithStrings = @('stressTestProgram', 'stressTestProgramPriority', 'name', 'mode', 'FFTSize', 'coreTestOrder', 'tests', 'memory', 'successSoundFile', 'errorSoundFile')
 
     # Lowercase for certain settings
     $settingsToLowercase = @('stressTestProgram', 'coreTestOrder', 'memory')
@@ -1525,7 +1525,7 @@ function Get-Settings {
             Exit-WithFatalError('Neither config.ini nor config.default.ini found!')
         }
 
-        $null = Copy-Item -Path $configDefaultPath -Destination $configUserPath
+        Copy-Item -Path $configDefaultPath -Destination $configUserPath
         $userSettings = Import-Settings $configUserPath
     }
 
@@ -2872,6 +2872,9 @@ function Start-Aida64 {
     Write-Verbose('Starting Aida64')
     Write-Verbose('The flag to only start the stress test process is: ' + $startOnlyStressTest)
 
+    # Cache or RAM
+    #deletevar? $thisMode = $settings.Aida64.mode
+
     # Check if the main window process exists
     $checkWindowProcess = Get-Process $stressTestPrograms[$settings.General.stressTestProgram]['processName'] -ErrorAction Ignore
 
@@ -3218,7 +3221,8 @@ function Initialize-yCruncher {
     # The tests to run
     $testsToRun = $selectedTests | ForEach-Object { -Join('            "', $_, '"') }
 
-    $configEntries = @(
+    $configEntries = (@(
+        '',
         '{',
         '    Action : "StressTest"',
         '    StressTest : {',
@@ -3235,7 +3239,7 @@ function Initialize-yCruncher {
         '        ]',
         '    }',
         '}'
-    ) -join "`r`n"
+    ) | ForEach-Object { $_ }) -join "`r`n"
 
 
     Set-Content -Path $configFile -Value $configEntries -Force
@@ -3253,6 +3257,8 @@ function Initialize-yCruncher {
 #>
 function Start-yCruncher {
     Write-Verbose('Starting y-Cruncher')
+
+    #deletevar? $thisMode = $settings.yCruncher.mode
 
     # Minimized to the tray
     #$processId = Start-Process -filepath $stressTestPrograms['ycruncher']['fullPathToExe'] -ArgumentList ('config "' + $stressTestConfigFilePath + '"') -PassThru -WindowStyle Hidden
@@ -3931,7 +3937,7 @@ function Test-StressTestProgrammIsRunning {
             $errorResults = $newLogEntries | Where-Object {$_.Line -match '.*error\(s\).*'} | Select-Object -Last 1
             
             if ($errorResults.Length -gt 0) {
-                $lastLineEntry  = $lastTwentyRows | Select-String -Pattern $errorResults.Line -SimpleMatch | Select-Object -First 1 | Select-Object Line,LineNumber
+                $lastLineEntry  = $lastTwentyRows | Select-String -Pattern $errorResults.Line -SimpleMatch | Select-Object -Property Line,LineNumber -First 1
                 $lastLineNumber = $lastLineEntry.LineNumber
             }
             else {
@@ -4659,7 +4665,7 @@ try {
                 $logFileFullPath
             )
 
-            $null = Add-Type -TypeDefinition $SendMessageDefinition -PassThru
+            $SendMessage = Add-Type -TypeDefinition $SendMessageDefinition -PassThru
 
             Start-Sleep 3
 
@@ -4790,7 +4796,7 @@ try {
             $fftSizeOverflow    = $false
 
             # Every 10 minutes refresh the power request to keep the PC awake
-            if (($(Get-Date) - $startDateTime).Minutes % 10 -eq 0) {
+            if ((New-TimeSpan -End $startDate).Minutes % 10 -eq 0) {
                 # Prevent sleep while the script is running (but allow the monitor to turn off)
                 [Windows.PowerUtil]::StayAwake($true, $false, 'CoreCycler is currently running.')
             }
