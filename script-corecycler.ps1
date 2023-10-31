@@ -4731,8 +4731,6 @@ try {
                 $logFileFullPath
             )
 
-            $SendMessage = Add-Type -TypeDefinition $SendMessageDefinition -PassThru
-
             Start-Sleep 3
 
             # Send the command a couple of times
