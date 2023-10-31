@@ -4430,10 +4430,6 @@ elseif ($settings.General.coreTestOrder -match '\d+') {
 
 # Wrap the main functionality in a try {} block, so that the finally {} block is executed even if CTRL+C is pressed
 try {
-    # Prevent sleep while the script is running (but allow the monitor to turn off)
-    [Windows.PowerUtil]::StayAwake($true, $false, 'CoreCycler is currently running.')
-
-
     # Check if the stress test process is already running
     $stressTestProcess = Get-Process $processName -ErrorAction Ignore
 
@@ -4761,6 +4757,12 @@ try {
             $uniquePassedTests  = [System.Collections.ArrayList]::new()
             $proceedToNextCore  = $false
             $fftSizeOverflow    = $false
+
+            # Every 10 minutes refresh the power request to keep the PC awake
+            if ((New-TimeSpan -End $startDate).Minutes % 10 -eq 0) {
+                # Prevent sleep while the script is running (but allow the monitor to turn off)
+                [Windows.PowerUtil]::StayAwake($true, $false, 'CoreCycler is currently running.')
+            }
 
             Write-Verbose('Still available cores: ' + ($coreTestOrderArray -Join ', '))
 
