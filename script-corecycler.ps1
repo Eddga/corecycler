@@ -74,6 +74,10 @@ $isYCruncher                = $false
 $isYCruncherWithLogging     = $false
 $cpuCheckIterations         = 0
 
+# Default Notifications parameters
+$successSoundFileDefault = "$env:windir\Media\tada.wav"
+$errorSoundFileDefault   = "$env:windir\Media\chord.wav"
+
 # Parameters that are controllable by debug settings
 $debugSettingsActive                        = $false
 $disableCpuUtilizationCheckDefault          = 0
@@ -809,9 +813,39 @@ function Show-FinalSummary {
         $coresWithErrorString = (($coresWithError | Sort-Object) -Join ', ')
         Write-ColorText('The following cores have thrown an error: ') Cyan
         Write-ColorText(' - ' + $coresWithErrorString) Cyan
+        $summaryMessage = "The following cores have thrown an error: $coresWithErrorString"
+        $soundFile = $errorSoundFile
     }
     else {
-        Write-ColorText('No core has thrown an error') Cyan
+        $summaryMessage = 'No core has thrown an error'
+        Write-ColorText($summaryMessage) Cyan
+        $soundFile = $successSoundFile
+    }
+
+
+    # Play an error or success sound if enabled in config and file is present
+    if ( $settings.Notifications.playSummarySound ) {
+        $soundFile = if ( [IO.Path]::GetExtension( $soundFile ) -ne '.wav' ) { $soundFile + '.wav' } else { $soundFile }
+        $soundFile = if ( $soundFile -match '^[^\\]*$' ) { (Get-ChildItem "$env:windir\Media" -Filter $soundFile | Select-Object -First 1).FullName } else { $soundFile }
+        if ( Test-Path $soundFile -ErrorAction Continue ) {
+            (New-Object Media.SoundPlayer $soundFile).Play()
+            Start-Sleep -Seconds 1
+        } else {
+            Write-ColorText('WARNING: No sound file was played - the "playSummarySound" flag was set, but the predefined sound file either couldn''t be found or isn''t a .wav file.') Yellow
+            Write-ColorText("WARNING: Given/calculated path: $soundFile") Yellow
+        }
+    }
+
+
+    # Use text-to-speech module to read the summary out loud if enabled in config - https://stackoverflow.com/a/69205851
+    if ( $settings.Notifications.readSummaryAloud ) {
+        if ( Get-ChildItem "$env:windir\assembly", "$env:ProgramFiles\Reference Assemblies\Microsoft\Framework", "${env:ProgramFiles(x86)}\Reference Assemblies\Microsoft\Framework" -Filter 'System.Speech.dll' -Recurse ) {
+            $null = Add-Type -AssemblyName System.Speech
+            $synth = New-Object -TypeName System.Speech.Synthesis.SpeechSynthesizer
+            $synth.speak($summaryMessage)
+        } else {
+            Write-ColorText('WARNING: No text-to-speech was played - the "readSummaryAloud" flag was set, but the system.speech.dll isn''t present or registered.') Yellow
+        }
     }
 }
 
@@ -1286,7 +1320,7 @@ function Import-Settings {
     )
 
     # Certain setting values are strings
-    $settingsWithStrings = @('stressTestProgram', 'stressTestProgramPriority', 'name', 'mode', 'FFTSize', 'coreTestOrder', 'tests', 'memory')
+    $settingsWithStrings = @('stressTestProgram', 'stressTestProgramPriority', 'name', 'mode', 'FFTSize', 'coreTestOrder', 'tests', 'memory', 'successSoundFile', 'errorSoundFile')
 
     # Lowercase for certain settings
     $settingsToLowercase = @('stressTestProgram', 'coreTestOrder', 'memory')
@@ -1592,6 +1626,11 @@ function Get-Settings {
     
     $Script:logFileName     = $logFilePrefix + '_' + $startDateTime + '_' + $settings.General.stressTestProgram.ToUpperInvariant() + '_' + $modeString + '.log'
     $Script:logFileFullPath = $logFilePathAbsolute + $logFileName
+
+
+    # Get the .wav file (path) from the Notifications if present or set the default values if empty
+    $Script:successSoundFile = $(if (![String]::IsNullOrWhiteSpace($settings.Notifications.successSoundFile)) { $settings.Notifications.successSoundFile } else { $successSoundFileDefault })
+    $Script:errorSoundFile   = $(if (![String]::IsNullOrWhiteSpace($settings.Notifications.errorSoundFile))   { $settings.Notifications.errorSoundFile   } else { $errorSoundFileDefault })
 
 
     # Debug settings may override default settings
