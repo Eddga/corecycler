@@ -3234,7 +3234,7 @@ function Initialize-yCruncher {
         # Cores line
         "        LogicalCores : [$( if ( $settings.General.numberOfThreads -gt 1 ) { '2 3' } else { '2' })]",
         # Memory Line
-        "        TotalMemory : $( if ( $settings.yCruncher.memory -ne 'Default' ) { $settings.yCruncher.memory } elseif ( $settings.General.numberOfThreads -gt 1 ) { '2 3' } else { '13418572' })",
+        "        TotalMemory : $( if ( $settings.yCruncher.memory -ne 'Default' ) { $settings.yCruncher.memory } elseif ( $settings.General.numberOfThreads -gt 1 ) { '26567600' } else { '13418572' })",
         "        SecondsPerTest : $(if ( $settings.yCruncher.testDuration -gt 0 ) { $settings.yCruncher.testDuration } else { '60' })",   # The duration per test
         '        SecondsTotal : 0',
         "        StopOnError : $( if ( $settings.yCruncher.enableYCruncherLoggingWrapper -eq 1 -and $settings.General.stopOnError -eq 0 ) { '`"false`"' } else { '`"true`"' })",
