@@ -213,7 +213,6 @@ $stressTestPrograms = @{
         'commandWithLogging'  = 'cmd /C start /MIN "y-Cruncher - %fileName%" "%helpersPath%WriteConsoleToWriteFileWrapper.exe" "%fullPathToLoadExe%" priority:2 config "%configFilePath%" /dlllog:"%logFilePath%"'
         'windowBehaviour'     = 6
         'testModes'           = @(
-            '00-x86',
             '04-P4P',
             '05-A64 ~ Kasumi',
             '08-NHM ~ Ushio',
@@ -222,7 +221,6 @@ $stressTestPrograms = @{
             '14-BDW ~ Kurumi',
             '17-ZN1 ~ Yukina',
             '19-ZN2 ~ Kagari',
-            '20-ZN3 ~ Yuzuki',
 
             # The following settings seem to be designed for Intel CPUs and don't run on Ryzen CPUs
             '11-BD1 ~ Miyu',
@@ -232,8 +230,8 @@ $stressTestPrograms = @{
             # This setting is designed for Ryzen 7000 (Zen 4) CPUs and uses AVX-512
             '22-ZN4 ~ Kizuna'
         )
-        'availableTests'      = @('BKT', 'BBP', 'SFT', 'FFT', 'N32', 'N64', 'HNT', 'VST', 'C17')
-        'defaultTests'        = @('BKT', 'BBP', 'SFT', 'FFT', 'N32', 'N64', 'HNT', 'VST')
+        'availableTests'      = @('BKT', 'BBP', 'SFT', 'FFT', 'N63', 'VT3')
+        'defaultTests'        = @('BKT', 'BBP', 'SFT', 'FFT', 'N63', 'VT3')
         'windowNames'         = @(
             '' # Depends on the selected modeYCruncher
         )
@@ -1323,7 +1321,7 @@ function Import-Settings {
     $settingsWithStrings = @('stressTestProgram', 'stressTestProgramPriority', 'name', 'mode', 'FFTSize', 'coreTestOrder', 'tests', 'memory', 'successSoundFile', 'errorSoundFile')
 
     # Lowercase for certain settings
-    $settingsToLowercase = @('stressTestProgram', 'coreTestOrder', 'memory')
+    $settingsToLowercase = @('stressTestProgram', 'coreTestOrder')
 
     # Check if the file exists
     if (!(Test-Path $filePath -PathType leaf)) {
@@ -3234,7 +3232,7 @@ function Initialize-yCruncher {
         # Cores line
         "        LogicalCores : [$( if ( $settings.General.numberOfThreads -gt 1 ) { '2 3' } else { '2' })]",
         # Memory Line
-        "        TotalMemory : $( if ( $settings.yCruncher.memory -ne 'Default' ) { $settings.yCruncher.memory } elseif ( $settings.General.numberOfThreads -gt 1 ) { '26567600' } else { '13418572' })",
+        "        TotalMemory : $( if ( $settings.yCruncher.memory -ne 'Default' ) { $(($settings.yCruncher.memory -replace '\s') / 1) } elseif ( $settings.General.numberOfThreads -gt 1 ) { 256MB } else { 128MB })",
         "        SecondsPerTest : $(if ( $settings.yCruncher.testDuration -gt 0 ) { $settings.yCruncher.testDuration } else { '60' })",   # The duration per test
         '        SecondsTotal : 0',
         "        StopOnError : $( if ( $settings.yCruncher.enableYCruncherLoggingWrapper -eq 1 -and $settings.General.stopOnError -eq 0 ) { '`"false`"' } else { '`"true`"' })",
